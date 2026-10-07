@@ -64,4 +64,4 @@ Before VPS deployment, obtain and record:
 
 If the dependency provenance/terms cannot be established, replace the native transport with an implementation whose distribution and licensing can be documented, then repeat transport and gameplay acceptance. The control-plane Go migration does not remove the native gameplay dependency.
 
-A [draft clarification request](unity-license-clarification-draft.md) describes the intended use and questions for Unity. It has not been sent. Record an authoritative response or a qualified review with the deployment decision; a provenance document cannot guarantee that no copyright complaint will occur.
+Continue the [repository license review](native-license-review.md) and record the applicable terms, supporting evidence and deployment decision. No outreach message is planned or has been sent. A provenance document cannot guarantee that no copyright complaint will occur.

@@ -8,7 +8,7 @@ The Go migration has automated verifier, room lifecycle, endpoint and protocol c
 
 ## Required before deployment
 
-1. Obtain Unity's written clarification for the three native dependencies, applicable license version, intended replacement service and packaging. The [request](unity-license-clarification-draft.md) is prepared but unsent; permission remains unresolved.
+1. Complete the [repository license review](native-license-review.md) for the three native dependencies, applicable license version, intended replacement service and packaging. Record supporting terms and the deployment decision; permission remains unresolved.
 2. Have the Nextendo account maintainer review the [Go verifier](nextendo-authentication.md). Provision trusted public BAAS keys and enrolled accounts privately. Disable lab authentication; no private signing key is needed by the verifier.
 3. Resolve transport/account binding: the native worker currently accepts peers independently of authenticated HTTP sessions.
 4. Select the VPS OS/architecture and a compatible, authorized native transport. Tested Windows DLLs do not establish Linux compatibility.
