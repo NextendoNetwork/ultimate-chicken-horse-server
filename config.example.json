@@ -1,0 +1,10 @@
+{
+  "labSigningKeyHex": "REPLACE_WITH_AT_LEAST_32_RANDOM_BYTES_ENCODED_AS_HEX",
+  "allowedSubjects": ["ENROLLED_LOCAL_TEST_IDENTITY"],
+  "certificatePem": "private/server-cert.pem",
+  "privateKeyPem": "private/server-key.pem",
+  "relayStatePath": "private/relay-state.json",
+  "relayPublicIP": "127.0.0.2",
+  "relayPort": 18888,
+  "allowedEndpointIPs": ["127.0.0.1", "127.0.0.2"]
+}

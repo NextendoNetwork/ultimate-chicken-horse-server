@@ -1,0 +1,9 @@
+/private/
+/bin/
+*.exe
+*.log
+*.pem
+*.nsp
+*.nca
+transport/unet-worker/bin/
+transport/unet-worker/obj/

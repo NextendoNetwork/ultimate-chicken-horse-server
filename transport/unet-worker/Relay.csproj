@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+  </PropertyGroup>
+  <Target Name="ValidateReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(UnetReferencesDir)' == ''" Text="Provide -p:UnetReferencesDir with your separately obtained native reference dependencies." />
+  </Target>
+  <ItemGroup>
+    <Reference Include="UNETServerAssembly"><HintPath>$(UnetReferencesDir)/UNETServerAssembly.dll</HintPath></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(UnetReferencesDir)/UnityEngine.dll</HintPath></Reference>
+    <None Include="$(UnetReferencesDir)/UNETServerDLL.dll" Link="UNETServerDLL.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
