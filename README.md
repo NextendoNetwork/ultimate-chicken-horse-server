@@ -48,6 +48,16 @@ The Go service serves TLS `/dispatcherv2`, regional protobuf allocation routes a
 - [Licensing and provenance](docs/licensing.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 
+## Contributors
+
+| Contributor | Contribution |
+| --- | --- |
+| [SoulToxic3119](https://github.com/SoulToxic3119) | Project direction, integration, test environment and manual gameplay validation |
+| Codex (OpenAI AI coding assistant) | Protocol investigation, implementation assistance, Go migration, automated checks and documentation |
+| Nextendo Network | Account/service integration target and maintained emulator ecosystem |
+
+See [credits and references](CREDITS.md) for upstream attribution and scope.
+
 ## License
 
 Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The [UNET worker directory](transport/unet-worker/LICENSE.txt) is licensed under MIT, with the original reference notice preserved. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.

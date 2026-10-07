@@ -1,7 +1,7 @@
 # Credits and scope
 
 - Soul / SoulToxic3119: development direction, local investigation, supplied test environment, integration and manual acceptance reports.
-- Codex: investigation assistance, implementation and migration assistance, documentation and automated validation.
+- Codex (OpenAI AI coding assistant): investigation assistance, implementation and migration assistance, documentation and automated validation.
 - Nextendo Network: target account/service integration and maintained emulator ecosystem.
 - Ryujinx, ARMeilleure, yuzu/Citron contributors: emulator implementations used for local diagnostics.
 - Albin Corén / MidLevel MLAPI.Relay: MIT-licensed relay protocol reference; its notice is retained under `transport/unet-worker`.
