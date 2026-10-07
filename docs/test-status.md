@@ -8,7 +8,7 @@
 | Ryujinx host/Citron guest | Owner confirmed connection and AFK persistence after Citron V2 | Reverse direction not separately confirmed |
 | Citron/Citron | Owner confirmed V4 works, including leaving and rejoining | Full-level completion, host reversal and AFK timing not separately recorded |
 | Ryujinx/Switch | Owner confirmed entry in both host directions and that the clients remain in the room after V18; reverse native join logged after preserving host port 17778 | Exact AFK duration, full level gameplay/recovery and Go acceptance remain to be recorded; see [routing evidence](switch-testing.md) |
-| Citron/Switch | Citron V4 host/Switch guest: discovery, lookup and allocation succeeded; native relay logged guest join | Manual level gameplay, leave/rejoin, timed AFK, host reversal and Go acceptance pending |
+| Citron/Switch | Owner confirmed Citron V4 host/Switch guest works; native join logged in both directions, including Switch host/Citron guest | Reverse visual confirmation, exact gameplay/AFK duration and leave/rejoin not separately recorded; Go acceptance pending |
 | Four online clients / separate networks | Pending | Local controllers are not separate online clients |
 
 ## Go migration
