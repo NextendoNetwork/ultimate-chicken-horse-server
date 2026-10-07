@@ -26,6 +26,8 @@ def main():
     args = parser.parse_args()
     config_path = Path(args.config).resolve()
     config = json.loads(config_path.read_text(encoding='utf-8-sig'))
+    if config.get('enableLabAuth') is not True or config.get('nextendoAuth'):
+        raise RuntimeError('This smoke probe requires an explicitly enabled lab-only config; it does not certify Nextendo login.')
     encode = lambda value: base64.urlsafe_b64encode(value).decode().rstrip('=')
     subject = config['allowedSubjects'][0]
     claims = {'iss': 'uch-local-lab', 'aud': '0100FCF002A58000', 'sub': subject,

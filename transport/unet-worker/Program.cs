@@ -8,6 +8,13 @@ using System.Net;
 using System.Text.Json;
 using UnetServerDll;
 
+string Option(string name, string fallback) => args.Contains(name) ? args[Array.IndexOf(args, name) + 1] : fallback;
+var listenIp = IPAddress.Parse(Option("--listen", "127.0.0.2"));
+var publicIp = IPAddress.Parse(Option("--public-ip", "127.0.0.2"));
+if (listenIp.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork ||
+    publicIp.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork || publicIp.Equals(IPAddress.Any))
+    throw new ArgumentException("Explicit IPv4 listener and advertised endpoint required.");
+var allowedIps = Option("--allowed-peers", "127.0.0.1,127.0.0.2").Split(',').Select(IPAddress.Parse).ToHashSet();
 var manager = new NetLibraryManager(new GlobalConfig());
 ConnectionConfig Configuration()
 {
@@ -28,9 +35,9 @@ ConnectionConfig Configuration()
     c.AddChannel(QosType.ReliableSequenced); // Relay control channel (3).
     return c;
 }
-var host = manager.AddHost(new HostTopology(Configuration(), 16), 18888, "127.0.0.2");
+var host = manager.AddHost(new HostTopology(Configuration(), 16), 18888, listenIp.ToString());
 if (host < 0) throw new InvalidOperationException("Local relay port unavailable.");
-var relay = new RelayRouter();
+var relay = new RelayRouter(publicIp);
 var receiveBuffer = new byte[65535];
 var reportedErrors = new HashSet<(NetworkEventType, byte)>();
 var reportedData = new HashSet<(int, int, byte)>();
@@ -64,6 +71,11 @@ void Poll()
         if (error != 0) Console.WriteLine($"UCH relay peer lookup error={error}");
         if (error == 0 && IPAddress.TryParse(ip, out var address))
         {
+            if (!allowedIps.Contains(address.MapToIPv4()))
+            {
+                manager.Disconnect(host, peer, out _);
+                continue;
+            }
             relay.Message(peer, new IPEndPoint(address.MapToIPv6(), port), channel, buffer.AsSpan(0, length).ToArray(), Send,
                 p => manager.Disconnect(host, p, out _));
         }
@@ -74,8 +86,8 @@ if (args.Contains("--self-test"))
 {
     var ownerHost = manager.AddHost(new HostTopology(Configuration(), 4), 0, "127.0.0.2");
     var guestHost = manager.AddHost(new HostTopology(Configuration(), 4), 0, "127.0.0.2");
-    var ownerConn = manager.Connect(ownerHost, "127.0.0.2", 18888, 0, out _);
-    var guestConn = manager.Connect(guestHost, "127.0.0.2", 18888, 0, out _);
+    var ownerConn = manager.Connect(ownerHost, listenIp.Equals(IPAddress.Any) ? "127.0.0.2" : listenIp.ToString(), 18888, 0, out _);
+    var guestConn = manager.Connect(guestHost, listenIp.Equals(IPAddress.Any) ? "127.0.0.2" : listenIp.ToString(), 18888, 0, out _);
     bool ownerConnected = false, guestConnected = false, requested = false, joined = false, received = false, returned = false;
     byte[]? endpoint = null;
     ulong remoteGuest = 0;
@@ -148,7 +160,7 @@ if (args.Contains("--self-test"))
     while (timer.ElapsedMilliseconds < 1000 && relay.RoomCount != 0) { Poll(); Thread.Sleep(2); }
     if (relay.RoomCount != 0) throw new InvalidOperationException("Owner disconnect did not clean up the room.");
     // Recreate on the same local host without restarting the relay process.
-    ownerConn = manager.Connect(ownerHost, "127.0.0.2", 18888, 0, out _);
+    ownerConn = manager.Connect(ownerHost, listenIp.Equals(IPAddress.Any) ? "127.0.0.2" : listenIp.ToString(), 18888, 0, out _);
     timer.Restart();
     bool recreated = false;
     while (timer.ElapsedMilliseconds < 5000 && !recreated)
@@ -166,7 +178,7 @@ if (args.Contains("--self-test"))
     Console.WriteLine("UCH relay: handshake, join, bidirectional data, idle keepalive, isolation, cleanup and recreation passed.");
     return;
 }
-Console.WriteLine("UCH relay listening on loopback; game channel compatibility pending.");
+Console.WriteLine($"UCH relay listener={listenIp}:18888 advertised={publicIp}:18888");
 string? statePath = args.Contains("--state") ? args[Array.IndexOf(args, "--state") + 1] : null;
 long lastState = 0;
 while (true)
@@ -175,7 +187,7 @@ while (true)
     long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     if (statePath != null && now - lastState >= 1000)
     {
-        var json = JsonSerializer.Serialize(new { updatedMs = now, ip = "127.0.0.2", port = 18888,
+        var json = JsonSerializer.Serialize(new { updatedMs = now, ip = publicIp.ToString(), port = 18888,
             endpoints = relay.Endpoints, incomingPackets = manager.GetIncomingPacketCountForAllHosts(),
             droppedPackets = manager.GetIncomingPacketDropCountForAllHosts() });
         File.WriteAllText(statePath + ".tmp", json);
@@ -185,7 +197,7 @@ while (true)
     Thread.Sleep(2);
 }
 
-sealed class RelayRouter
+sealed class RelayRouter(IPAddress? publicIp = null)
 {
     sealed class Room(int owner, IPEndPoint endpoint)
     { public int Owner = owner; public IPEndPoint Endpoint = endpoint; public HashSet<int> Guests = new(); }
@@ -211,6 +223,12 @@ sealed class RelayRouter
                 (data.Length == 24 && data.AsSpan(19,4).ToArray().All(b => b >= 'A' && b <= 'Z'))) && room == null:
                 var target = new IPEndPoint(new IPAddress(data.AsSpan(0,16)), BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(16,2)));
                 room = rooms.Find(r => r.Endpoint.Equals(target));
+                if (room == null && publicIp != null && target.Address.MapToIPv4().Equals(publicIp))
+                {
+                    var aliases = rooms.Where(r => IPAddress.IsLoopback(r.Endpoint.Address.MapToIPv4()) &&
+                                                   r.Endpoint.Port == target.Port).ToArray();
+                    if (aliases.Length == 1) room = aliases[0];
+                }
                 if (room == null || room.Guests.Count >= 3)
                 {
                     Console.WriteLine($"UCH relay join rejected target={target} rooms={rooms.Count} endpointMatch={room != null} capacityAvailable={room != null && room.Guests.Count < 3}");

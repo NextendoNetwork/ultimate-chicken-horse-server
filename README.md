@@ -11,14 +11,14 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 | Ryujinx / Ryujinx | Joining and gameplay; room remains during AFK |
 | Ryujinx host / Citron guest | Joining; both remain during AFK |
 | Citron / Citron | Creating, joining, leaving and rejoining |
-| Ryujinx / Switch | Pending |
+| Ryujinx / Switch | In progress: Python lab records console room updates and heartbeats |
 | Citron / Switch | Pending |
 
 The manual results above used the original Python control plane and native relay. **They do not certify the Go migration.** Exact AFK durations, both host directions and four-player coverage were not separately established. See [test status](docs/test-status.md).
 
 ## Build and run
 
-Requirements: Go 1.27.1+, a private TLS certificate/key, explicitly enrolled lab identities, and a running compatible UNET worker.
+Requirements: Go 1.27.1+, a private TLS certificate/key, explicitly enrolled identities, trusted BAAS public keys for Nextendo mode, and a running compatible UNET worker.
 
 ```sh
 go test ./... -timeout 60s
@@ -26,7 +26,7 @@ go vet ./...
 go build -o bin/uch-server ./cmd/uch-server
 ```
 
-Copy `config.example.json` to ignored `private/config.json`, provide your private values, and start the separately built [UNET worker](transport/unet-worker/README.md). Then run:
+For Nextendo mode, copy `config.nextendo.example.json` to ignored `private/config.json`, provision trusted public BAAS keys and enroll the intended accounts. See [account authentication](docs/nextendo-authentication.md). `config.example.json` is the explicitly enabled local lab alternative. Start the separately built [UNET worker](transport/unet-worker/README.md), then run:
 
 ```sh
 bin/uch-server -config private/config.json -addr 127.0.0.2:443
@@ -40,6 +40,8 @@ The Go service serves TLS `/dispatcherv2`, regional protobuf allocation routes a
 
 - [Protocol and architecture](docs/protocol.md)
 - [Nextendo integration gates](docs/nextendo-integration.md)
+- [Nextendo account authentication](docs/nextendo-authentication.md)
+- [Native dependency provenance and unresolved terms](docs/native-dependencies.md)
 - [Emulator changes](docs/client-fixes.md)
 - [Switch test prerequisites](docs/switch-testing.md)
 - [Historical investigation](docs/history)
@@ -50,6 +52,6 @@ The Go service serves TLS `/dispatcherv2`, regional protobuf allocation routes a
 
 Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The [UNET worker directory](transport/unet-worker/LICENSE.txt) is licensed under MIT, with the original reference notice preserved. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
 
-Local credentials issued here are explicitly marked `uch-local-lab` and title-scoped. They are not Nintendo credentials or production Nextendo authentication. Do not deploy the lab identity verifier as a production account service.
+Nextendo mode verifies signed BAAS credentials and checks the enclosed proof with the Nextendo account authority. Local lab credentials remain marked `uch-local-lab` and require `enableLabAuth: true`; do not deploy lab mode as a production account service. Native binary terms, Go gameplay acceptance and transport/account binding remain deployment gates.
 
 Game archives, firmware, keys, account files, captures, certificates and compiled emulator/native binaries are excluded. The source changes and documents describe the observed interfaces without distributing those private inputs.

@@ -9,8 +9,8 @@ The Nextendo owner requested these three conditions before deploying UCH using t
 | Gate | Evidence required | Current status |
 | --- | --- | --- |
 | Native Unity dependencies | Reproducible source and explicit applicable terms for all three DLLs, including use on the target VPS and any intended redistribution | Local archive provenance and file hashes recorded in [native dependency provenance](native-dependencies.md); applicable binary terms still unestablished |
-| Nextendo account authentication | Maintained Nextendo verification in the Go service, stable account mapping, rejection/revocation tests and successful game authentication | The published Go service still uses the lab verifier. A separate Python experiment now verifies BAAS RS256 signatures and checks the enclosed account proof with Nextendo; console acceptance and the Go port remain pending |
-| Physical Switch acceptance | Recorded discovery, join, gameplay, leave/rejoin, AFK and recovery using the intended server revision | Switch reaches the LAN lab and completes TLS. Its original login was rejected with 40307 because the lab only accepted local HMAC tokens; testing the new console verifier is pending |
+| Nextendo account authentication | Maintained Nextendo verification in Go, stable mapping, rejection/revocation tests and game acceptance | Go RS256 and account-authority proof validation are implemented and tested; maintainer review and actual game acceptance on Go remain pending |
+| Physical Switch acceptance | Discovery, join, gameplay, leave/rejoin, AFK and recovery on the intended revision | Python lab now records Switch room updates and heartbeats with status 200. Full gameplay/recovery evidence and Go acceptance remain pending |
 
 Do not treat the Python authentication experiment as a completed production identity bridge. BAAS public keys were fetched with the Prelude CA and TLS hostname verification; no private signing keys are required. The experiment checks signatures, configured issuer/audience, expiry, subject binding and the enrolled Nextendo proof, then asks the account service to validate the proof/account state. Its runtime key/configuration files and token metadata remain private.
 
@@ -18,7 +18,7 @@ After the three gates close, record the actual JSAB deployment configuration bef
 
 ## Implementation checklist
 
-1. Replace the lab verifier with the maintained Nextendo account verifier. Validate the intended issuer, audience, expiry and signature, then map a stable account identity to the game profile. Never trust unsigned token claims or a caller-supplied PID as production authentication.
+1. Review and accept the implemented Nextendo account verifier with the account maintainer, then complete its staging acceptance. It validates issuer, audience, expiry, signature and account proof before stable profile mapping. Keep lab mode disabled. Never trust unsigned claims or a caller-supplied PID as authentication.
 2. Preserve the game-required login fields and cloud-script envelopes while adding that identity bridge. A 200 HTTP response alone does not mean the game accepted authentication.
 3. Bind the authenticated room owner and guests to gameplay transport connections. The current native worker accepts UNET peers independently of the HTTP session.
 4. Provide service routing and valid TLS for brainCloud-compatible RPC and regional allocation names. Retain title/version scope in client routing.

@@ -39,6 +39,7 @@ type room struct {
 	reservations map[string]time.Time
 }
 type Backend struct {
+	nextendo *NextendoAuth
 	mu       sync.Mutex
 	key      []byte
 	allowed  map[string]bool
@@ -226,16 +227,24 @@ func (b *Backend) message(m Object, sid string) Object {
 			return failure(403, 40315)
 		}
 		subject := str(data["externalId"])
-		if !b.verify(str(data["authenticationToken"]), subject) {
-			return failure(403, 40307)
+		if b.nextendo != nil {
+			verifiedSubject, ok := b.nextendo.Verify(str(data["authenticationToken"]), subject)
+			if !ok {
+				return failure(403, 40307)
+			}
+			subject = verifiedSubject
+		} else {
+			if !b.verify(str(data["authenticationToken"]), subject) {
+				return failure(403, 40307)
+			}
+			// Canonicalize the verified local credential, not caller-supplied aliases.
+			raw, _ := base64.RawURLEncoding.DecodeString(strings.Split(str(data["authenticationToken"]), ".")[0])
+			var claims struct {
+				Sub string `json:"sub"`
+			}
+			json.Unmarshal(raw, &claims)
+			subject = claims.Sub
 		}
-		// Normalize decimal/hex aliases to one identity; never create multiple users for one credential.
-		raw, _ := base64.RawURLEncoding.DecodeString(strings.Split(str(data["authenticationToken"]), ".")[0])
-		var claims struct {
-			Sub string `json:"sub"`
-		}
-		json.Unmarshal(raw, &claims)
-		subject = claims.Sub
 		pid := ProfileID(subject)
 		now := b.now()
 		p, newUser := b.profiles[pid]

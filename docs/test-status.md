@@ -7,7 +7,7 @@
 | Ryujinx/Ryujinx | Owner confirmed room entry and gameplay; V17 remained during AFK | Exact duration and same-process recreation not separately recorded |
 | Ryujinx host/Citron guest | Owner confirmed connection and AFK persistence after Citron V2 | Reverse direction not separately confirmed |
 | Citron/Citron | Owner confirmed V4 works, including leaving and rejoining | Full-level completion, host reversal and AFK timing not separately recorded |
-| Ryujinx/Switch | Console reaches the LAN lab and accepts TLS; account-verifier experiment awaiting retry | Original login returned 40307; no room entry or gameplay success claimed |
+| Ryujinx/Switch | Python lab records Switch room updates and heartbeats with status 200 after Nextendo verification | End-to-end pair gameplay, timed AFK/recovery and Go acceptance remain to be recorded |
 | Citron/Switch | Pending | No success claimed |
 | Four online clients / separate networks | Pending | Local controllers are not separate online clients |
 
@@ -27,4 +27,4 @@ A separate temporary TLS process on port 8443 also passed certificate/hostname v
 4. Verify normal logout, transport loss, stale room disappearance and rehosting without process restart.
 5. Validate Nextendo account integration in staging before public deployment.
 
-The current console-authentication experiment uses the Python lab, not the Go service. Its 34 automated checks cover the existing lab contracts, enrolled LAN endpoints and RS256/proof verification, including altered signatures, scope/identity mismatches, expired tokens and account rejection. These checks do not establish acceptance on a physical Switch. See the [owner's VPS gates](nextendo-integration.md).
+The Python lab's 34 checks cover existing contracts, enrolled LAN endpoints and RS256/proof verification. Its console logs now show room updates and heartbeats, but do not establish the complete acceptance sequence. The same authentication boundary is implemented in Go with real RSA-signature tests, account authority rejection and explicit lab-token rejection; Go tests, vet and build passed. Repeat actual game acceptance on Go. See the [owner's VPS gates](nextendo-integration.md).

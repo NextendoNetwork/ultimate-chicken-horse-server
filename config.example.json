@@ -1,4 +1,5 @@
 {
+  "enableLabAuth": true,
   "labSigningKeyHex": "REPLACE_WITH_AT_LEAST_32_RANDOM_BYTES_ENCODED_AS_HEX",
   "allowedSubjects": ["ENROLLED_LOCAL_TEST_IDENTITY"],
   "certificatePem": "private/server-cert.pem",

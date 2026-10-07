@@ -1,0 +1,15 @@
+{
+  "enableLabAuth": false,
+  "nextendoAuth": {
+    "jwksPath": "private/nextendo-baas-jwks.json",
+    "issuer": "https://e0d67c509fb203858ebcb2fe3f88c2aa.baas.nintendo.com",
+    "audience": "ed9e2f05d286f7b8"
+  },
+  "allowedSubjects": ["123"],
+  "certificatePem": "private/server-cert.pem",
+  "privateKeyPem": "private/server-key.pem",
+  "relayStatePath": "private/relay-state.json",
+  "relayPublicIP": "REPLACE_WITH_REACHABLE_SERVER_IP",
+  "relayPort": 18888,
+  "allowedEndpointIPs": ["REPLACE_WITH_ENROLLED_PEER_IP"]
+}

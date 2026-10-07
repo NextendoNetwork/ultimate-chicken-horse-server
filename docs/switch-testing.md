@@ -2,7 +2,7 @@
 
 The owner will use the same Prelude/Atmosphere Switch as earlier tests and is installing UCH. Its current IP, installed version and game Build ID remain to be confirmed.
 
-The existing successful emulator lab is loopback-only. A Switch cannot reach `127.0.0.2` on the PC. Prepare these prerequisites before a manual join:
+The original successful emulator lab was loopback-only. It has since been adapted for an enrolled LAN console, with logs showing accepted TLS and room updates/heartbeats after the Python Nextendo verifier was enabled. This evidence does not certify the Go service or the full physical-console acceptance sequence. A Switch cannot reach `127.0.0.2` on the PC. Verify these prerequisites on each test setup:
 
 1. Confirm Switch and PC LAN addresses and UCH **1.13.13.765**.
 2. Identify the active Atmosphere/Prelude environment and preserve its existing host-blocking rules.

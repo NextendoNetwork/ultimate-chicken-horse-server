@@ -18,14 +18,16 @@ import (
 )
 
 type config struct {
-	LabSigningKeyHex   string   `json:"labSigningKeyHex"`
-	AllowedSubjects    []string `json:"allowedSubjects"`
-	CertificatePem     string   `json:"certificatePem"`
-	PrivateKeyPem      string   `json:"privateKeyPem"`
-	RelayStatePath     string   `json:"relayStatePath"`
-	RelayPublicIP      string   `json:"relayPublicIP"`
-	RelayPort          int      `json:"relayPort"`
-	AllowedEndpointIPs []string `json:"allowedEndpointIPs"`
+	EnableLabAuth      bool                    `json:"enableLabAuth"`
+	NextendoAuth       *backend.NextendoConfig `json:"nextendoAuth"`
+	LabSigningKeyHex   string                  `json:"labSigningKeyHex"`
+	AllowedSubjects    []string                `json:"allowedSubjects"`
+	CertificatePem     string                  `json:"certificatePem"`
+	PrivateKeyPem      string                  `json:"privateKeyPem"`
+	RelayStatePath     string                  `json:"relayStatePath"`
+	RelayPublicIP      string                  `json:"relayPublicIP"`
+	RelayPort          int                     `json:"relayPort"`
+	AllowedEndpointIPs []string                `json:"allowedEndpointIPs"`
 }
 
 func main() {
@@ -71,7 +73,21 @@ func main() {
 		allowed[parsed.String()] = true
 	}
 	relay := &backend.FileRelay{Path: c.RelayStatePath, PublicIP: c.RelayPublicIP, Port: c.RelayPort, AllowedIPs: allowed}
-	b, e := backend.New(key, c.AllowedSubjects, relay, nil)
+	var b *backend.Backend
+	if c.NextendoAuth != nil {
+		if c.EnableLabAuth {
+			log.Fatal("select Nextendo authentication or lab mode, never both")
+		}
+		auth, err := backend.NewNextendoAuth(*c.NextendoAuth, c.AllowedSubjects)
+		if err != nil {
+			log.Fatal(err)
+		}
+		b, e = backend.NewAuthenticated(c.AllowedSubjects, relay, auth)
+	} else if c.EnableLabAuth {
+		b, e = backend.New(key, c.AllowedSubjects, relay, nil)
+	} else {
+		log.Fatal("configure Nextendo authentication; lab mode requires explicit enableLabAuth")
+	}
 	if e != nil {
 		log.Fatal(e)
 	}

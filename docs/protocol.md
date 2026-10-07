@@ -8,7 +8,7 @@ Supported operations:
 
 | Service / script | Contract |
 | --- | --- |
-| authenticationV2 / AUTHENTICATE | Local verifier-backed identity, session ID, expiry, player fields, `identity.identityData` |
+| authenticationV2 / AUTHENTICATE | Nextendo RS256/account-proof identity, or explicitly enabled lab identity; session ID, expiry, player fields, `identity.identityData` |
 | playerState / LOGOUT | Removes the caller's session and room |
 | events/createMatch_JS | Creates one pending room per owner; `scriptData.match` envelope |
 | events/setLobbyData | Owner-only publication; immutable owner/code; observed endpoint resolution |
