@@ -24,9 +24,9 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 | Citron / Citron | Both players in the lobby |
 | Ryujinx host / Switch guest | Room entry and persistence reported |
 | Citron / Switch | Room entry in both host directions; both remain in the room |
-| Switch / Switch | Pending |
+| Switch / Switch | Two physical consoles joined and played together, operator-confirmed; [evidence limits](docs/switch-switch-acceptance.md) |
 
-These runs used Go for HTTP services and the native worker for gameplay, with explicit emulator lab credentials and strict console account-proof verification. They did not test the new production online gate or an independent Go UDP transport. The first Citron-host/Switch-guest attempt timed out; retry succeeded without a code change. Exact AFK durations, completed levels and all recovery scenarios were not measured. Full evidence limits and historical Python tests are in [test status](docs/test-status.md).
+The earlier emulator/console runs used Go for HTTP services and the native worker for gameplay, with explicit emulator lab credentials and strict console account-proof verification. The Switch/Switch confirmation does not separately establish the account mode or exact runtime revision. They did not test the new production online gate or an independent Go UDP transport. The first Citron-host/Switch-guest attempt timed out; retry succeeded without a code change. Exact AFK durations, completed levels and all recovery scenarios were not measured. Full evidence limits and historical Python tests are in [test status](docs/test-status.md).
 
 ## Build the Go service
 
@@ -78,6 +78,6 @@ See [credits and references](CREDITS.md) for upstream attribution and scope.
 
 Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The retained [UNET reference notices](transport/unet-worker/LICENSE.txt) keep their MIT terms. The imported personal Go components retain their MIT notices; see the pinned import record in docs/imported-go-components.md. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
 
-Nextendo mode verifies signed BAAS credentials and checks the enclosed proof with the Nextendo account authority. Local lab credentials remain marked `uch-local-lab` and require `enableLabAuth: true`; do not deploy lab mode as a production account service. Native binary terms or their removal, production account acceptance, Switch/Switch testing, and transport/account binding remain deployment gates.
+Nextendo mode verifies signed BAAS credentials and checks the enclosed proof with the Nextendo account authority. Local lab credentials remain marked `uch-local-lab` and require `enableLabAuth: true`; do not deploy lab mode as a production account service. Native binary terms or their removal, production account acceptance and transport/account binding remain deployment gates. Switch/Switch room entry and gameplay are now operator-confirmed; measured recovery scenarios remain separate.
 
 Game archives, firmware, keys, account files, captures, certificates and compiled emulator/native binaries are excluded. The source changes and documents describe the observed interfaces without distributing those private inputs.

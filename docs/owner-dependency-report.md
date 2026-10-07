@@ -2,6 +2,8 @@
 
 Date: 2026-10-07. Release status: **not ready for a DLL-free VPS deployment**.
 
+Latest owner review reported by the operator accepts the login source (open enrollment, online-check and lab authentication disabled) and the emulator/console pairing results. The additional physical Switch/Switch match is now operator-confirmed and recorded in [acceptance](switch-switch-acceptance.md). The remaining transport question is the DLL-specific runtime terms or completion of the independent adapter.
+
 ## Where the tested DLLs came from
 
 | Input | Established provenance | Remaining issue |

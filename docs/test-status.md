@@ -15,6 +15,8 @@ On 2026-10-06 the operator confirmed the requested local pairing campaign is com
 
 ## Go migration
 
+Latest operator report, 2026-10-07: two physical Switch consoles joined and played a match using the Go service. See [Switch/Switch acceptance](switch-switch-acceptance.md). The earlier pending statements below are chronological records superseded for this pairing by that confirmation. Exact revision, measured AFK/recovery, production gate execution and independent transport acceptance are not inferred.
+
 Current source also includes open Nextendo account enrollment and the mandatory production online-check gate, plus a Go application relay router. Contract/unit tests pass. The deployed game campaign used the previous mixed acceptance authentication and native worker; it does not certify these new production or transport components. No complete Go UDP implementation or Switch/Switch result is claimed. The paragraphs below are chronological campaign records.
 
 On 2026-10-07, the Go repository was rebuilt with Go 1.27.1 and its package tests passed. The repository's .NET worker was rebuilt with SDK 10.0.301 and passed synthetic handshake, joining, bidirectional traffic, idle keepalive, isolation, cleanup and recreation. Alcalde and Soul were opened with Ryujinx UCH V18 for a new manual Go-control-plane campaign. Gameplay results are **pending**. This first run explicitly uses local lab authentication and the existing private native DLLs; it does not certify Nextendo login, `/internal/online-check`, a pure-Go transport, or DLL permission. Runtime configuration, binary hashes and process records are kept in ignored private files.

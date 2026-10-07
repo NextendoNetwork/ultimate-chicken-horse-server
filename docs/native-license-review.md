@@ -4,6 +4,8 @@ The project records dependency provenance and licensing decisions in this reposi
 
 ## Pending review
 
+Answer to the owner's latest question: the documented inputs originate from MLAPI.Relay and match official Unity standalone-server artifacts to the extent recorded in the provenance table. Unity explicitly published this library for independent C# servers under UCL. This establishes intended server capability and a license family, not unconditional runtime permission for Nextendo's exact three-file set. Exact UnityEngine provenance and applicable terms/operator eligibility remain unresolved. We cannot currently answer "yes, these three DLLs are approved for this VPS" from the available evidence. The alternative Go adapter is still incomplete.
+
 The [owner dependency report](owner-dependency-report.md) summarizes the exact evidence, source-license boundary and DLL-free release requirements for Nextendo review. It is not a license grant or an approval to deploy the current worker.
 
 The 2026-10-07 [deployment decision](native-deployment-decision.md) concludes that the available evidence does not approve these tested binaries for the VPS. The provenance review is documented; runtime eligibility and a production transport remain unresolved. Local Go control-plane tests do not remove this gate.
