@@ -26,7 +26,7 @@ No Unity DLL or recovered implementation is committed to the Go library. Private
 | --- | --- | --- |
 | Go HTTP control plane | Title envelopes and account verification/gate code with contract tests | Acceptance against the deployed Nextendo account service and presence rules |
 | Go application router | Room membership, routing and isolation tests | Connect it to authenticated gameplay transport events |
-| Go wire adapter | Bounded system framing, connection request framing and measured rejection parsing | Successful handshake, data/ACK processing, reliability, fragmentation, keepalive and disconnect |
+| Go wire adapter | Bounded controls, small-message framing and first 32 ACK IDs; synthetic native-client connection/registration reply passes in a Go-only loopback experiment | Complete lifecycle, rolling ACKs, ordering/loss recovery, fragmentation, aggregation, multiple clients and real-game integration |
 | Native gameplay worker | Used in the successful mixed Go-API game campaign | Remove it from the release and repeat the campaign against the replacement |
 
 The Go API campaign is not evidence of a DLL-free transport: the native worker still handled gameplay. The required physical-console campaign includes Switch/Ryujinx and Switch/Citron in both host directions, and Switch/Switch, with discovery, gameplay, leave/rejoin and measured AFK/recovery. Each acceptance record must identify the actual API and transport revision. See [integration](nextendo-integration.md) and [migration](go-migration.md).

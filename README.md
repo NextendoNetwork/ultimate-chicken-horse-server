@@ -13,6 +13,8 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 | UCH application relay routing | Imported Go source under `internal/relayrouter`; adapter integration pending |
 | UNET UDP handshake, reliability, fragmentation and keepalive | Still supplied by the legacy .NET/native worker; **not yet replaced by Go** |
 
+An [experimental Go loopback adapter](docs/go-transport-experiment.md) now establishes a connection, ACKs small messages on the measured profile and returns room registration to a native reference client. Full transport/real-game acceptance remains incomplete; this experiment does not change the no-VPS status.
+
 **This repository is not yet a complete Go gameplay server.** The imported router is not connected to a UNET wire adapter. The operator requested retaining the external original worker for compatibility staging while the Go replacement is completed. It requires three private Unity-related DLLs whose applicable runtime terms remain unresolved. See [native staging](docs/native-staging.md), [imported Go components](docs/imported-go-components.md), [Go migration](docs/go-migration.md) and [deployment decision](docs/native-deployment-decision.md).
 
 ### Manual game tests against the Go control plane

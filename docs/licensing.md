@@ -15,6 +15,7 @@ License texts and third-party notices retain their own terms. Read the complete 
 | Go control plane and probes | Port of the authored UCH Python lab and observed protocol contracts | Source, tests and examples | Root PolyForm Shield |
 | Legacy UNET worker | Local adaptation using MidLevel/MLAPI.Relay as protocol reference | Reference docs/notices; C# source archived privately and present in historical commits | MIT, copyright 2019 Albin Corén, plus adaptation notice |
 | Imported personal Go relay/wire components | Application room router and bounded UNET framing; wire transport unfinished | `internal/relayrouter/` and `internal/unetwire/`; [pinned import record](imported-go-components.md) | MIT, preserving personal authored-source and reference/adaptation notices alongside files |
+| Experimental Go loopback peer | Measured initial connection, early ACKs and registration interoperability | `cmd/unet-loopback-check/`; not the main service | MIT, adjacent license text; local import-path adaptation |
 | Go standard library | Build/runtime dependency; no third-party Go modules in `go.mod` | Imported through the Go toolchain, not vendored | Go distribution's own BSD-style license and notices |
 | .NET SDK/runtime | Worker build/runtime dependency | Not bundled | Obtain and retain the notices from the selected distribution |
 | `UNETServerAssembly.dll`, `UnityEngine.dll`, `UNETServerDLL.dll` | Privately supplied worker dependencies | Not included | Redistribution rights have not been established; MIT reference code does not license these binaries |

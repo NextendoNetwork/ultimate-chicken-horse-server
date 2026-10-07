@@ -10,6 +10,8 @@ The Go application router prepared in the separate personal library replaces the
 
 ## Work required to remove Unity dependencies
 
+Progress on 2026-10-07: the [bounded Go experiment](go-transport-experiment.md) successfully connected to a native reference client, decoded five synthetic small messages on all four channels and returned the router's registration reply with no pending ACKs in that run. Control framing and first-32-ID ACKs are now implemented in the imported codec. The complete lifecycle/reliability/fragmentation/multi-peer and real-game requirements below remain open. The experiment is not connected to the live service.
+
 1. Establish an independently authored UNET wire specification from interface observations, keeping original binaries, assets, disassembly, account material and captures private.
 2. Implement the UDP handshake, configuration validation, connection identifiers, per-channel sequencing, ACK/retransmission, fragmentation/reassembly, ping/timeout, disconnect and resource bounds in Go. A generic UDP forwarder cannot replace these mechanisms.
 3. Connect decoded transport events to the personal library's router and export the necessary reviewed component into UCH and provide the endpoint/liveness contract consumed by `internal/backend`. Bind gameplay enrollment to authenticated accounts rather than trusting an IP alone.
