@@ -53,7 +53,7 @@ The Go service serves TLS `/dispatcherv2`, regional protobuf allocation routes a
 | Contributor | Contribution |
 | --- | --- |
 | [SoulToxic3119](https://github.com/SoulToxic3119) | Project direction, integration, test environment and manual gameplay validation |
-| Codex (OpenAI AI coding assistant) | Protocol investigation, implementation assistance, Go migration, automated checks and documentation |
+| [Codex](https://github.com/codex) (OpenAI AI coding assistant) | Protocol investigation, implementation assistance, Go migration, automated checks and documentation |
 | Nextendo Network | Account/service integration target and maintained emulator ecosystem |
 
 See [credits and references](CREDITS.md) for upstream attribution and scope.
