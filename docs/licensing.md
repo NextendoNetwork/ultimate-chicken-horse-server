@@ -4,7 +4,7 @@
 
 The original Go control plane, tests, scripts, configuration examples and documentation are offered under [PolyForm Shield 1.0.0](../LICENSE.md), following the license used for the separate Nextendo Classics project. That project supplies the license policy, not UCH implementation code. Preserve the required notice in the license: Copyright 2026 Nextendo Network.
 
-The entire `transport/unet-worker/` directory is an explicit exception: its source, project file and accompanying documentation are offered under [MIT](../transport/unet-worker/LICENSE.txt). The original Albin Corén notice is also retained verbatim in `REFERENCE-LICENSE.txt`. This exception includes the local worker adaptations; the root Shield terms do not replace the reference's MIT grant.
+The `transport/unet-worker/` reference documentation and retained notices keep their [MIT exception](../transport/unet-worker/LICENSE.txt). Its legacy C# source has been archived outside the public working tree; earlier Git revisions retain that original grant. The personal Go library is maintained separately with MIT reference/adaptation notices. The original Albin Corén notice is also retained verbatim in `REFERENCE-LICENSE.txt`. The root Shield terms do not replace these MIT grants.
 
 License texts and third-party notices retain their own terms. Read the complete license texts; PolyForm Shield includes a noncompete restriction and must not be described as an unrestricted MIT or open-source license.
 
@@ -13,7 +13,8 @@ License texts and third-party notices retain their own terms. Read the complete 
 | Component | Provenance / role | Included here | License evidence |
 | --- | --- | --- | --- |
 | Go control plane and probes | Port of the authored UCH Python lab and observed protocol contracts | Source, tests and examples | Root PolyForm Shield |
-| UNET router worker | Local adaptation using MidLevel/MLAPI.Relay as protocol reference | C# source and project; no native DLLs | MIT, copyright 2019 Albin Corén, plus local adaptation notice |
+| Legacy UNET worker | Local adaptation using MidLevel/MLAPI.Relay as protocol reference | Reference docs/notices; C# source archived privately and present in historical commits | MIT, copyright 2019 Albin Corén, plus adaptation notice |
+| Personal Go application relay library | Authored Go implementation of the documented room-membership/payload contract; wire layer unfinished | Separate private-repository preparation; not currently imported into UCH | MIT, retaining reference/adaptation notices |
 | Go standard library | Build/runtime dependency; no third-party Go modules in `go.mod` | Imported through the Go toolchain, not vendored | Go distribution's own BSD-style license and notices |
 | .NET SDK/runtime | Worker build/runtime dependency | Not bundled | Obtain and retain the notices from the selected distribution |
 | `UNETServerAssembly.dll`, `UnityEngine.dll`, `UNETServerDLL.dll` | Privately supplied worker dependencies | Not included | Redistribution rights have not been established; MIT reference code does not license these binaries |

@@ -39,15 +39,16 @@ type room struct {
 	reservations map[string]time.Time
 }
 type Backend struct {
-	nextendo *NextendoAuth
-	mu       sync.Mutex
-	key      []byte
-	allowed  map[string]bool
-	now      func() time.Time
-	relay    Relay
-	sessions map[string]session
-	profiles map[string]*profile
-	rooms    map[string]*room
+	nextendo   *NextendoAuth
+	labConsole *NextendoAuth
+	mu         sync.Mutex
+	key        []byte
+	allowed    map[string]bool
+	now        func() time.Time
+	relay      Relay
+	sessions   map[string]session
+	profiles   map[string]*profile
+	rooms      map[string]*room
 }
 
 func New(key []byte, subjects []string, relay Relay, clock func() time.Time) (*Backend, error) {
@@ -195,6 +196,11 @@ func (b *Backend) expire() {
 	}
 }
 func (b *Backend) Dispatch(packet Object) (Object, error) {
+	return b.DispatchForPeer(packet, "")
+}
+
+// peerIP must come from the HTTP transport, never the packet or proxy headers.
+func (b *Backend) DispatchForPeer(packet Object, peerIP string) (Object, error) {
 	messages, ok := packet["messages"].([]any)
 	if !ok || len(messages) == 0 || len(messages) > 32 {
 		return nil, errors.New("invalid message batch")
@@ -212,11 +218,14 @@ func (b *Backend) Dispatch(packet Object) (Object, error) {
 	b.expire()
 	responses := make([]any, 0, len(messages))
 	for _, msg := range messages {
-		responses = append(responses, b.message(obj(msg), str(packet["sessionId"])))
+		responses = append(responses, b.messageForPeer(obj(msg), str(packet["sessionId"]), peerIP))
 	}
 	return Object{"packetId": id, "responses": responses}, nil
 }
 func (b *Backend) message(m Object, sid string) Object {
+	return b.messageForPeer(m, sid, "")
+}
+func (b *Backend) messageForPeer(m Object, sid, peerIP string) Object {
 	if m == nil {
 		return failure(400, 40001)
 	}
@@ -228,7 +237,13 @@ func (b *Backend) message(m Object, sid string) Object {
 		}
 		subject := str(data["externalId"])
 		if b.nextendo != nil {
-			verifiedSubject, ok := b.nextendo.Verify(str(data["authenticationToken"]), subject)
+			verifiedSubject, ok := b.nextendo.VerifyForPeer(str(data["authenticationToken"]), subject, peerIP)
+			if !ok {
+				return failure(403, 40307)
+			}
+			subject = verifiedSubject
+		} else if b.labConsole != nil && strings.Count(str(data["authenticationToken"]), ".") == 2 {
+			verifiedSubject, ok := b.labConsole.Verify(str(data["authenticationToken"]), subject)
 			if !ok {
 				return failure(403, 40307)
 			}

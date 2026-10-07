@@ -4,21 +4,21 @@ The Go implementation preserves the title-specific service envelopes established
 
 ## Owner's VPS deployment gates
 
-The Nextendo owner requested these three conditions before deploying UCH using the JSAB operational pattern. They remain open:
+The Nextendo owner requested these three conditions before deploying UCH using the JSAB operational pattern. The implementation and remaining acceptance are tracked separately:
 
 | Gate | Evidence required | Current status |
 | --- | --- | --- |
 | Native Unity dependencies | Reproducible source and explicit applicable terms for all three DLLs, including use on the target VPS and any intended redistribution | Pinned upstream origins, official package comparison and UCL evidence recorded in [native dependency provenance](native-dependencies.md); applicability to this use remains unresolved |
-| Nextendo account authentication | Maintained Nextendo verification in Go, stable mapping, rejection/revocation tests and game acceptance | Go RS256 and account-authority proof validation are implemented and tested; maintainer review and actual game acceptance on Go remain pending |
-| Physical Switch acceptance | Discovery, join, gameplay, leave/rejoin, AFK and recovery on the intended revision | Operator confirmed local Ryujinx/Switch and Citron/Switch pairings in both host directions. Exact timing/recovery scenarios and repetition on Go staging remain pending |
+| Nextendo account authentication | Maintained Nextendo verification in Go, stable mapping, rejection/revocation tests and game acceptance | Go RS256/proof validation, open account enrollment and required `/internal/online-check` are implemented with contract tests. Device classification, deployed account-service/presence integration and production login acceptance remain pending |
+| Physical Switch acceptance | Discovery, join, gameplay, leave/rejoin, AFK and recovery on the intended revision | Go-control-plane Ryujinx host/Switch guest and Citron/Switch in both host directions are operator-confirmed. These used the legacy native worker and mixed acceptance auth. Switch/Switch, measured timing/recovery and the independent Go transport campaign remain pending |
 
-Do not treat the Python authentication experiment as a completed production identity bridge. BAAS public keys were fetched with the Prelude CA and TLS hostname verification; no private signing keys are required. The experiment checks signatures, configured issuer/audience, expiry, subject binding and the enrolled Nextendo proof, then asks the account service to validate the proof/account state. Its runtime key/configuration files and token metadata remain private.
+The Python implementation is historical evidence; the maintained API implementation is Go. Do not treat mixed lab game acceptance as production identity acceptance. BAAS public keys were fetched with the Prelude CA and TLS hostname verification; no private signing keys are required. The experiment checks signatures, configured issuer/audience, expiry, subject binding and the enrolled Nextendo proof, then asks the account service to validate the proof/account state. Its runtime key/configuration files and token metadata remain private.
 
 After the three gates close, record the actual JSAB deployment configuration before adapting it: service/container definitions, target OS/architecture, TLS routing, UDP exposure, secrets, health checks, logging, resource limits, restart policy and rollback. This document does not claim that the JSAB deployment files have been inspected or that UCH is ready for the VPS.
 
 ## Implementation checklist
 
-1. Review and accept the implemented Nextendo account verifier with the account maintainer, then complete its staging acceptance. It validates issuer, audience, expiry, signature and account proof before stable profile mapping. Keep lab mode disabled. Never trust unsigned claims or a caller-supplied PID as authentication.
+1. Review and accept the implemented Nextendo account verifier with the account maintainer, then complete its staging acceptance. It validates issuer, audience, expiry, signature and account proof before stable profile mapping. Keep lab mode disabled, select open enrollment, and provision the account gate and internal key privately. Never trust unsigned claims or a caller-supplied PID as authentication.
 2. Preserve the game-required login fields and cloud-script envelopes while adding that identity bridge. A 200 HTTP response alone does not mean the game accepted authentication.
 3. Bind the authenticated room owner and guests to gameplay transport connections. The current native worker accepts UNET peers independently of the HTTP session.
 4. Provide service routing and valid TLS for brainCloud-compatible RPC and regional allocation names. Retain title/version scope in client routing.
@@ -29,3 +29,7 @@ After the three gates close, record the actual JSAB deployment configuration bef
 The Go migration canonicalizes decimal/hex credential aliases to one profile and clears obsolete pending endpoints after successful publication. These changes address migration edge cases and require game-level regression coverage.
 
 LevelNET uploads/downloads, moderation, storage, catalogues and general UCH account services are not implemented by this room/relay prototype. Their presence in the game's menus is not evidence of backend support.
+
+## Selected dependency resolution
+
+The operator requested a complete Go server. The selected path is an independently authored wire transport with no Unity DLL runtime dependency. API and application-router Go code are present; UNET handshake/reliability/fragmentation/keepalive remain unfinished. See [migration](go-migration.md). The native worker is historical/test infrastructure, not an approved VPS distribution. Tooling or license documentation alone cannot close that implementation requirement.

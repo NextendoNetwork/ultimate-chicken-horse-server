@@ -4,6 +4,8 @@ The project records dependency provenance and licensing decisions in this reposi
 
 ## Pending review
 
+The 2026-10-07 [deployment decision](native-deployment-decision.md) concludes that the available evidence does not approve these tested binaries for the VPS. The provenance review is documented; runtime eligibility and a production transport remain unresolved. Local Go control-plane tests do not remove this gate.
+
 | Item | Status |
 | --- | --- |
 | Original server and worker source licenses | Documented in [licensing](licensing.md); worker MIT exception retained |

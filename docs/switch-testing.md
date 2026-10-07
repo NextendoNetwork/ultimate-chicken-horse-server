@@ -1,4 +1,12 @@
-# Physical Switch test prerequisites
+# Physical Switch tests
+
+## Current Go campaign (2026-10-07)
+
+Ryujinx host/Switch guest and Citron/Switch in both host directions are confirmed against the Go HTTP service and legacy native worker. Switch/Switch is pending. Tests used mixed acceptance authentication, not production online-check. Personal addresses remain in ignored runtime files. When moving networks, update private routing and enrolled peers. Restarting the Go service invalidates its in-memory game sessions; fully close/reopen UCH to obtain a fresh login. See [test status](test-status.md).
+
+The remainder records historical prerequisites and the original Python campaign; it must not be used to claim an independent Go wire transport was tested.
+
+## Historical prerequisites
 
 The owner will use the same Prelude/Atmosphere Switch as earlier tests and is installing UCH. Its current IP, installed version and game Build ID remain to be confirmed.
 

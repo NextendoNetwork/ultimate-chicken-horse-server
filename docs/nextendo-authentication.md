@@ -1,24 +1,33 @@
-# Nextendo account authentication
+# Nextendo account authentication in Go
 
-The Go server supports console BAAS RS256 credentials backed by the Nextendo account service. Use `config.nextendo.example.json`. The CLI requires either this mode or explicit `enableLabAuth: true`; combining them is rejected. Nextendo mode rejects local HMAC tokens and needs no lab signing secret.
+Production configuration: `config.nextendo.example.json`. Set `enableLabAuth` to false and `nextendoAuth.allowAllAccounts` to true. Omit `allowedSubjects`: every account satisfying Nextendo verification and online policy is eligible. Combining open enrollment with an allowlist is rejected. Lab HMAC credentials are never accepted by this mode.
 
-## Verification and mapping
+## Verification before issuing a UCH session
 
-1. Supply an operator-trusted public JWKS. The verifier selects an enrolled RSA key by `kid`, accepts only RS256 and checks its signature using Go's standard crypto implementation. Token `jku`/`x5u` URLs are never fetched.
-2. Require the configured exact issuer and audience, expiry, issue time, optional not-before and signed subject matching the game's external identity. At most two trailing IPC NUL bytes are accepted.
-3. Require the signed `nnex` claim with an `nx2` proof. Check its expiry and enroll the canonical decimal PID in `allowedSubjects`.
-4. Verify the proof exclusively against `https://nextendo.network/api/profile` over trusted HTTPS. The account service checks its MAC, revocation and account status. Require the authoritative username to match the proof before mapping the PID to the stable game profile. Redirects are refused; response size and request timeout are bounded.
+1. Verify the BAAS RS256 signature against an operator-provisioned public JWKS and enrolled `kid`. Token `jku`/`x5u` URLs never select keys or network destinations.
+2. Check exact issuer/audience, expiry, issue time, optional not-before, signed external identity and optional UCH `app_id`. Bound trailing IPC NUL padding to two bytes.
+3. Read the `nx2` account proof from the signed `nnex` claim. Require a canonical nonzero decimal uint64 PID and an unexpired proof.
+4. Send that proof to `https://nextendo.network/api/profile` using trusted TLS. Require the authority-verified username to match the proof. A caller-supplied PID alone is insufficient.
+5. POST to the configured `/internal/online-check` with JSON fields `pid` (verified numeric PID), `kind` (configured device kind), and `ip` (HTTP transport peer), plus `X-Internal-Key`. Require HTTP 200, boolean `allow: true` and a nonempty `session_id` before issuing the UCH session. Denials, missing fields, unavailable services, redirects and malformed/oversized responses deny login.
 
-JWTs, proof bytes and account response bodies are not logged. No private signing keys or real credentials are included. Example PID `123` is a placeholder.
+The account service owns email verification and the one-place policy. Its inspected handler also handles unknown/disabled accounts and optional Discord policy. UCH delegates these decisions to that handler.
 
-## Key provisioning
+## Operator provisioning
 
-The Python investigation fetched public keys from the fixed BAAS `/1.0.0/certificates` endpoint using TLS hostname validation and the trusted CA from the owner's Prelude distribution. Consulted [baas-jwks source](https://github.com/NextendoNetwork/baas-jwks) revision: `fe141462a5b622be49bfe28a01174c653af3e23f`. Provision the JWKS through the maintained Nextendo deployment process and retain its provenance. Never dynamically trust a token URL or unverified TLS. This version loads the file at startup: key rotation requires an updated file and restart/redeploy.
+- Provision trusted BAAS public keys through the maintained Nextendo process. Consulted [baas-jwks source](https://github.com/NextendoNetwork/baas-jwks) revision: `fe141462a5b622be49bfe28a01174c653af3e23f`. UCH requires no private BAAS signing key. Key rotation currently requires file replacement and redeployment.
+- Set `NEXTENDO_INTERNAL_KEY` through the service environment using the account service's matching key (minimum 32 bytes). The example contains no secret. The key is read at startup.
+- Replace the example internal account-service port with the actual deployment route. HTTPS is accepted; HTTP is restricted to literal loopback. Query strings, URL credentials, fragments and other paths are rejected. Redirects are refused. Authority requests have five-second timeouts and 64 KiB response limits.
+- Review `deviceKindsByKeyId` with the maintainer. It classifies the verified key identifier as `switch` or `ryujinx` (the account service's emulator category, also used for Citron). Unmapped keys are denied. This is a deployment classification convention, **not independent proof of physical hardware**: shared signing keys can have multiple identifiers. Approve this convention or supply authoritative device binding before relying on device isolation.
+- Gate IP comes from the HTTP socket, never JSON or forwarding headers. A terminating reverse proxy currently supplies its own address. Proxy integration requires a trusted peer-address design and acceptance.
 
-## Remaining staging boundaries
+Credentials, account response bodies, internal keys and personal addresses are excluded from the repository. Diagnostic stage labels contain no credential data.
 
-The observed console JWT has no title claim; its BAAS audience does not establish title-specific authorization. An `app_id`, when present, must match UCH. Broader entitlement must come from maintained Nextendo policy. The PID allowlist remains explicit for staging; production enrollment policy needs account-maintainer review.
+## Acceptance and remaining boundaries
 
-Authentication runs inside the dispatch lock; a bounded remote account lookup can delay concurrent requests. Each login rechecks account state; no success cache is used. Gameplay transport is not yet bound to the HTTP account session.
+Go tests use real RSA signatures and an HTTP mock implementing the inspected account route. Coverage includes signature/scope/time failures, revoked proof, canonical identity, gate denial without issuing a session, missing decision/session, wrong types, redirects, outages and oversized responses. These are contract tests, not deployed account-service acceptance.
 
-Tests cover real RSA signing/verification, forged signatures, wrong scope/subject, expiry/issue time/not-before, account rejection, padding and rejection of lab tokens in Nextendo mode. Repeat actual console/emulator acceptance on Go: the Python lab's room updates and heartbeats establish console control-plane progress, not complete Go gameplay certification.
+The 2026-10-07 emulator/Switch campaign used explicit mixed acceptance mode: `labConsoleAuth` verifies enrolled console BAAS/account proofs, while emulators use local HMAC tokens. It did **not** run the production gate. This mode cannot accompany `nextendoAuth` and is not a public deployment configuration.
+
+Login calls the gate. Continuous revocation, cross-server presence monitoring and gameplay transport/account binding still require deployment integration and acceptance. The native worker accepts peers independently of HTTP sessions. Verification currently runs within the dispatcher lock, so authority delays can delay concurrent requests. No success cache is used.
+
+The observed console JWT has no title claim. Its audience alone does not establish title-specific authorization; maintained account policy must supply any additional entitlement rule.

@@ -20,6 +20,7 @@ import (
 type config struct {
 	EnableLabAuth      bool                    `json:"enableLabAuth"`
 	NextendoAuth       *backend.NextendoConfig `json:"nextendoAuth"`
+	LabConsoleAuth     *backend.NextendoConfig `json:"labConsoleAuth"`
 	LabSigningKeyHex   string                  `json:"labSigningKeyHex"`
 	AllowedSubjects    []string                `json:"allowedSubjects"`
 	CertificatePem     string                  `json:"certificatePem"`
@@ -74,6 +75,9 @@ func main() {
 	}
 	relay := &backend.FileRelay{Path: c.RelayStatePath, PublicIP: c.RelayPublicIP, Port: c.RelayPort, AllowedIPs: allowed}
 	var b *backend.Backend
+	if c.LabConsoleAuth != nil && (!c.EnableLabAuth || c.NextendoAuth != nil) {
+		log.Fatal("labConsoleAuth requires explicit lab mode and cannot accompany production Nextendo authentication")
+	}
 	if c.NextendoAuth != nil {
 		if c.EnableLabAuth {
 			log.Fatal("select Nextendo authentication or lab mode, never both")
@@ -82,9 +86,19 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		b, e = backend.NewAuthenticated(c.AllowedSubjects, relay, auth)
+		b, e = backend.NewAuthenticated(relay, auth)
 	} else if c.EnableLabAuth {
-		b, e = backend.New(key, c.AllowedSubjects, relay, nil)
+		if c.LabConsoleAuth != nil {
+			auth, err := backend.NewNextendoAuth(*c.LabConsoleAuth, c.AllowedSubjects)
+			if err != nil {
+				log.Fatal(err)
+			}
+			auth.ObserveVerification = func(stage string) { log.Printf("UCH console credential stage=%s", stage) }
+			b, e = backend.NewLabWithConsole(key, c.AllowedSubjects, relay, auth)
+			log.Print("Explicit mixed lab acceptance mode: local emulator credentials and strictly verified console credentials; not production login")
+		} else {
+			b, e = backend.New(key, c.AllowedSubjects, relay, nil)
+		}
 	} else {
 		log.Fatal("configure Nextendo authentication; lab mode requires explicit enableLabAuth")
 	}
@@ -123,14 +137,29 @@ func main() {
 			reply(w, 400, backend.Object{"error": "invalid request"})
 			return
 		}
-		result, e := b.Dispatch(packet)
+		peerIP := ""
+		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			if ip := net.ParseIP(host); ip != nil {
+				peerIP = ip.String()
+			}
+		}
+		result, e := b.DispatchForPeer(packet, peerIP)
 		if e != nil {
 			reply(w, 400, backend.Object{"error": "invalid request"})
 			return
 		}
 		reply(w, 200, clientView(result, r.RemoteAddr, c.RelayPublicIP))
 		// No headers, request bodies, identifiers or credentials are logged.
-		log.Print("UCH dispatcher batch completed")
+		responses, _ := result["responses"].([]any)
+		failures := 0
+		for _, value := range responses {
+			response, _ := value.(map[string]any)
+			if status, ok := response["status"].(int); ok && status != 200 {
+				failures++
+			}
+		}
+		log.Printf("UCH dispatcher peer=%s responses=%d failures=%d", peerClass(r.RemoteAddr), len(responses), failures)
+		logDispatchMetadata(packet, responses, r.RemoteAddr)
 	})
 	for _, path := range []string{"/health/ping", "/health/get-ip", "/relay/get-next-available", "/relay/get-game-server"} {
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +198,11 @@ func main() {
 			w.Write(body)
 		})
 	}
-	server := &http.Server{Addr: *address, Handler: mux, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 30 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}}
+	server := &http.Server{Addr: *address, Handler: mux, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 30 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}, ConnState: func(conn net.Conn, state http.ConnState) {
+		if state == http.StateNew && peerClass(conn.RemoteAddr().String()) == "network" {
+			log.Print("UCH network TCP connection accepted; TLS/request completion not yet established")
+		}
+	}}
 	log.Print("UCH lab control plane starting; external UNET worker required")
 	log.Fatal(server.ListenAndServeTLS(c.CertificatePem, c.PrivateKeyPem))
 }

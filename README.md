@@ -4,40 +4,55 @@ Go implementation of the observed UCH authentication, lobby and relay-allocation
 
 Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328`). This game uses brainCloud-compatible RPC scripts and MLAPI/UNET gameplay transport; it is separate from the NPLN Classics servers.
 
-## Current status
+## Go migration status (2026-10-07)
 
-| Pair | Owner-reported result on the original lab |
+| Component | Current implementation |
 | --- | --- |
-| Ryujinx / Ryujinx | Joining and gameplay; room remains during AFK |
-| Ryujinx host / Citron guest | Joining; both remain during AFK |
-| Citron / Citron | Creating, joining, leaving and rejoining |
-| Ryujinx / Switch | Confirmed in both host directions; clients remain in the room (Ryujinx V18) |
-| Citron / Switch | Confirmed in both host directions (Citron V4) |
+| TLS API, authentication, lobby lifecycle and regional allocation | Go; package tests pass |
+| Nextendo production login | Go RS256/account-proof verification, open account enrollment and required `/internal/online-check`; deployed-service acceptance pending |
+| UCH application relay routing | Prepared in the separate personal Go library; not a public UCH dependency yet |
+| UNET UDP handshake, reliability, fragmentation and keepalive | Still supplied by the legacy .NET/native worker; **not yet replaced by Go** |
 
-The operator confirmed the requested local pairing tests are complete. They used the original Python control plane and native relay. **They do not certify the Go migration.** Exact AFK durations, four-player coverage and every recovery scenario were not individually timed or recorded. Both emulator/Switch host directions are confirmed. See [test status](docs/test-status.md) and the [staging handoff](docs/staging-handoff.md).
+**This repository is not yet a complete Go gameplay server.** The router in the personal library is not connected to a UNET wire adapter. The tested worker still requires three private Unity-related DLLs whose applicable runtime terms remain unresolved. The selected migration direction is an independently authored Go wire transport; no claim that the binary licensing gate is closed is made. See [Go migration](docs/go-migration.md) and [deployment decision](docs/native-deployment-decision.md).
 
-## Build and run
+### Manual game tests against the Go control plane
 
-Requirements: Go 1.27.1+, a private TLS certificate/key, explicitly enrolled identities, trusted BAAS public keys for Nextendo mode, and a running compatible UNET worker.
+| Pair | Operator-confirmed result |
+| --- | --- |
+| Ryujinx / Ryujinx | Pass reported |
+| Ryujinx host / Citron guest | Room entry confirmed |
+| Citron / Citron | Both players in the lobby |
+| Ryujinx host / Switch guest | Room entry and persistence reported |
+| Citron / Switch | Room entry in both host directions; both remain in the room |
+| Switch / Switch | Pending |
+
+These runs used Go for HTTP services and the native worker for gameplay, with explicit emulator lab credentials and strict console account-proof verification. They did not test the new production online gate or an independent Go UDP transport. The first Citron-host/Switch-guest attempt timed out; retry succeeded without a code change. Exact AFK durations, completed levels and all recovery scenarios were not measured. Full evidence limits and historical Python tests are in [test status](docs/test-status.md).
+
+## Build the Go service
+
+Go 1.27.1+ is used by the current verification campaign:
 
 ```sh
-go test ./... -timeout 60s
+go test -buildvcs=false ./... -timeout 60s
 go vet ./...
-go build -o bin/uch-server ./cmd/uch-server
+go build -buildvcs=false -o bin/uch-server ./cmd/uch-server
 ```
 
-For Nextendo mode, copy `config.nextendo.example.json` to ignored `private/config.json`, provision trusted public BAAS keys and enroll the intended accounts. See [account authentication](docs/nextendo-authentication.md). `config.example.json` is the explicitly enabled local lab alternative. Start the separately built [UNET worker](transport/unet-worker/README.md), then run:
+This binary has no linked Unity DLLs and no third-party Go modules. It implements the HTTP control plane; gameplay still needs the transport described above. A successful build is not a complete-server deployment approval.
+
+For production account mode, copy `config.nextendo.example.json` to ignored `private/config.json`. Provision TLS, trusted BAAS public keys, the private account-service internal key, and the reviewed device-kind mapping. `allowAllAccounts: true` delegates eligibility to Nextendo; omit `allowedSubjects` and disable lab mode. See [account authentication](docs/nextendo-authentication.md).
+
+An operator-configured staging invocation is:
 
 ```sh
-bin/uch-server -config private/config.json -addr 127.0.0.2:443
+bin/uch-server -config private/config.json -addr 0.0.0.0:443
 ```
 
-The default `-addr` is `127.0.0.2:8443`; the game lab uses port 443. Relative paths in the configuration resolve against the working directory.
-
-The Go service serves TLS `/dispatcherv2`, regional protobuf allocation routes and `/health`. It fails room creation/allocation when the worker snapshot is stale. The UNET wire transport is **not ported to Go**; the worker retains a .NET/native dependency. No native DLLs are distributed here.
+All advertised server/peer addresses and secret paths must be supplied privately by the operator. Example addresses are placeholders or loopback, never the author's residential network. Relative paths resolve against the working directory. The service fails allocation/publication when its transport state is unavailable or stale. The [legacy worker](transport/unet-worker/README.md) documents the existing test implementation; its unresolved binary terms prohibit presenting it as an approved VPS package.
 
 ## Integration and client fixes
 
+- [Go migration and remaining wire transport](docs/go-migration.md)
 - [Protocol and architecture](docs/protocol.md)
 - [Nextendo integration gates](docs/nextendo-integration.md)
 - [Nextendo account authentication](docs/nextendo-authentication.md)
@@ -61,8 +76,8 @@ See [credits and references](CREDITS.md) for upstream attribution and scope.
 
 ## License
 
-Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The [UNET worker directory](transport/unet-worker/LICENSE.txt) is licensed under MIT, with the original reference notice preserved. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
+Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The retained [UNET reference notices](transport/unet-worker/LICENSE.txt) keep their MIT terms. The separately prepared personal library has its own MIT notice; reviewed components may be imported later. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
 
-Nextendo mode verifies signed BAAS credentials and checks the enclosed proof with the Nextendo account authority. Local lab credentials remain marked `uch-local-lab` and require `enableLabAuth: true`; do not deploy lab mode as a production account service. Native binary terms, Go gameplay acceptance and transport/account binding remain deployment gates.
+Nextendo mode verifies signed BAAS credentials and checks the enclosed proof with the Nextendo account authority. Local lab credentials remain marked `uch-local-lab` and require `enableLabAuth: true`; do not deploy lab mode as a production account service. Native binary terms or their removal, production account acceptance, Switch/Switch testing, and transport/account binding remain deployment gates.
 
 Game archives, firmware, keys, account files, captures, certificates and compiled emulator/native binaries are excluded. The source changes and documents describe the observed interfaces without distributing those private inputs.

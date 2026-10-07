@@ -6,6 +6,7 @@
 - Original copyright: Copyright (c) 2019 Albin Corén.
 - License: MIT. Full text: [REFERENCE-LICENSE.txt](transport/unet-worker/REFERENCE-LICENSE.txt).
 - Worker source and local adaptations: [LICENSE.txt](transport/unet-worker/LICENSE.txt), MIT.
+- A separate personal Go library is being prepared with MIT reference/adaptation notices. No Unity binary implementation code is included or relabeled. Necessary reviewed components will retain their notices when imported into UCH.
 - The full original license is preserved. The local archive's exact upstream commit is unknown and is not asserted here.
 
 The original archive `LICENCE` and the retained reference notice were checked by SHA-256; the recorded values below identify the actual license files, not the entire source archive or an upstream revision.
