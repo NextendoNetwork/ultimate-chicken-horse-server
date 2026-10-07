@@ -16,3 +16,9 @@ The operator explicitly confirmed that two physical Switch consoles entered the 
 | Hosting reversal, leave/rejoin, timed AFK and recovery | Not separately measured in this confirmation |
 
 No packet capture, runtime log or physical device was independently inspected for this reported match. No personal addresses, account identifiers or keys are published. This confirmation fulfills the requested functional Switch/Switch pairing report; it does not settle DLL terms or prove DLL-free gameplay. Maintainer release acceptance remains separate.
+
+## Follow-up Switch to Citron check
+
+On 2026-10-07 (America/Lima), the operator confirmed the requested repeat pairing between the physical Switch and Citron Alcalde. The setup uses the Go HTTP staging service and the original external UNET worker, with explicit private test authentication. This confirmation is recorded as Switch/Citron, not as a new physical Switch/Switch match; match duration and hosting reversal were not separately reported for this repeat.
+
+For maintainer review: physical Switch/Switch gameplay is possible with the tested Go control plane and original worker, as confirmed in the earlier operator report above. The independent Go transport has not yet demonstrated physical Switch/Switch gameplay. This follow-up does not change the unresolved DLL licensing or the hold on VPS deployment.
