@@ -6,7 +6,7 @@ The current Go executable replaces the original Python HTTP control plane. The o
 
 The Go application router prepared in the separate personal library replaces the room-membership and payload-routing logic previously implemented in C#. Its tests cover observed control messages, host registration using the observed endpoint, guest membership, both data directions, unrelated-peer isolation, capacity, malformed input, removal and recreation. Actions are returned for the future transport adapter to execute outside the router lock. Its MIT license and reference attribution are explicit.
 
-**The router does not decode raw UNET UDP packets. It is not wired into the running server.** The successful game campaign continues to use the separate native worker. No independent transport compatibility is inferred from router unit tests.
+**The imported router does not decode raw UNET UDP packets. It is not wired into the running server.** The successful game campaign continues to use the separate native worker. No independent transport compatibility is inferred from router unit tests.
 
 ## Work required to remove Unity dependencies
 
@@ -30,6 +30,6 @@ See [Nextendo integration](nextendo-integration.md): the API/production gate has
 
 ## Separate personal repository
 
-The operator requested a private repository in their own GitHub account for reusable authored Go code and analysis tooling. The library is prepared in the separate private personal repository `SoulToxic3119/unity-unet-go`. It is not hosted in the Nextendo organization and is not a deployable UCH dependency yet. Original game/Unity inputs and recovered code are excluded. Public UCH will receive only the necessary reviewed source, with its notices, after compatibility testing.
+The operator requested a private repository in their own GitHub account for reusable authored Go code and analysis tooling. The library is prepared in the separate private personal repository `SoulToxic3119/unity-unet-go`. It is not hosted in the Nextendo organization and is its necessary relay/framing Go components are now copied into UCH with their MIT notices, without a private module dependency. They are not a deployable transport yet. Original game/Unity inputs and recovered code are excluded. Public UCH will receive only the necessary reviewed source, with its notices, after compatibility testing.
 
 Validation on 2026-10-07: both repositories pass go test -buildvcs=false ./... and go vet ./.... The UCH Go privacy checker passes, and the isolated TLS/session smoke probe passes without restarting the game service. The Go PE comparison reproduces the 24 build-metadata differences and identical normalized/native-code hashes recorded in the provenance document. The private Go NSO decoder validates the real extracted UCH input: all three section hashes match the prior extraction, and ELF export succeeds. These checks do not certify the missing wire transport or production gameplay.

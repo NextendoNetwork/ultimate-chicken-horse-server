@@ -31,6 +31,8 @@ The Go API campaign is not evidence of a DLL-free transport: the native worker s
 
 ## Packaging decision
 
+The operator subsequently requested retaining the original external worker for staging while continuing the Go replacement. The public tree now includes pinned MIT relay/framing source from the private personal repository; see [imported components](imported-go-components.md). The [native staging instructions](native-staging.md) retain the unresolved terms and platform boundaries. This is not Nextendo production acceptance and does not change the release status above.
+
 The selected route is to finish the independent Go adapter and distribute only the reviewed source/binary and its required notices. Original DLLs, game inputs, keys, decompiler output and personal network addresses must not enter the public repository or release package. Moving a DLL worker behind a Go launcher does not satisfy this route. No production-ready release or license approval is asserted by this report.
 
 The reusable repository stays private in the owner's personal account. Only necessary reviewed Go components will be copied into UCH with MIT and reference notices; the public VPS build must not depend on access to that private repository. Document the exported revision and source paths before integration. The historical native dependency record stays available after removal.

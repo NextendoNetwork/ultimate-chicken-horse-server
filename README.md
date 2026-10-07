@@ -10,10 +10,10 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 | --- | --- |
 | TLS API, authentication, lobby lifecycle and regional allocation | Go; package tests pass |
 | Nextendo production login | Go RS256/account-proof verification, open account enrollment and required `/internal/online-check`; deployed-service acceptance pending |
-| UCH application relay routing | Prepared in the separate personal Go library; not a public UCH dependency yet |
+| UCH application relay routing | Imported Go source under `internal/relayrouter`; adapter integration pending |
 | UNET UDP handshake, reliability, fragmentation and keepalive | Still supplied by the legacy .NET/native worker; **not yet replaced by Go** |
 
-**This repository is not yet a complete Go gameplay server.** The router in the personal library is not connected to a UNET wire adapter. The tested worker still requires three private Unity-related DLLs whose applicable runtime terms remain unresolved. The selected migration direction is an independently authored Go wire transport; no claim that the binary licensing gate is closed is made. See [Go migration](docs/go-migration.md) and [deployment decision](docs/native-deployment-decision.md).
+**This repository is not yet a complete Go gameplay server.** The imported router is not connected to a UNET wire adapter. The operator requested retaining the external original worker for compatibility staging while the Go replacement is completed. It requires three private Unity-related DLLs whose applicable runtime terms remain unresolved. See [native staging](docs/native-staging.md), [imported Go components](docs/imported-go-components.md), [Go migration](docs/go-migration.md) and [deployment decision](docs/native-deployment-decision.md).
 
 ### Manual game tests against the Go control plane
 
@@ -76,7 +76,7 @@ See [credits and references](CREDITS.md) for upstream attribution and scope.
 
 ## License
 
-Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The retained [UNET reference notices](transport/unet-worker/LICENSE.txt) keep their MIT terms. The separately prepared personal library has its own MIT notice; reviewed components may be imported later. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
+Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The retained [UNET reference notices](transport/unet-worker/LICENSE.txt) keep their MIT terms. The imported personal Go components retain their MIT notices; see the pinned import record in docs/imported-go-components.md. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
 
 Nextendo mode verifies signed BAAS credentials and checks the enclosed proof with the Nextendo account authority. Local lab credentials remain marked `uch-local-lab` and require `enableLabAuth: true`; do not deploy lab mode as a production account service. Native binary terms or their removal, production account acceptance, Switch/Switch testing, and transport/account binding remain deployment gates.
 

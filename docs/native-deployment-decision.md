@@ -14,6 +14,8 @@ Keeping these files out of GitHub avoids distributing them in this repository; i
 
 ## Resolution paths
 
+Operator instruction update, 2026-10-07: retain the externally supplied original worker for compatibility staging while importing the authored Go components. [Native staging](native-staging.md) records this path. This instruction does not resolve the artifact-specific license questions, establish Linux compatibility or represent the Nextendo maintainer's production approval. The independent transport remains the path to a DLL-free release.
+
 Deployment can proceed only after either:
 
 1. Evidence establishes the applicable terms and operator eligibility for an authoritative, reproducible distribution of every required binary, with its notices and target-platform acceptance; or
