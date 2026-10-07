@@ -203,6 +203,6 @@ func main() {
 			log.Print("UCH network TCP connection accepted; TLS/request completion not yet established")
 		}
 	}}
-	log.Print("UCH lab control plane starting; external UNET worker required")
+	log.Print("UCH Go control plane starting; configured transport state required")
 	log.Fatal(server.ListenAndServeTLS(c.CertificatePem, c.PrivateKeyPem))
 }

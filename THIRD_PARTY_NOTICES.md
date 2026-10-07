@@ -2,6 +2,8 @@
 
 ## MLAPI.Relay reference and UNET worker
 
+- The measured multi-peer Go transport, updated codecs/tests and staging command are imported from personal revision `c55f0dfcddf72ee056eef6a5b8c6c2cf742e0a6d`. `internal/unettransport/` and `cmd/unet-staging/` retain adjacent MIT texts. Only module import paths are adapted. This code does not load or distribute Unity DLLs; production acceptance remains pending.
+
 - Source: https://github.com/MidLevel/MLAPI.Relay
 - Original copyright: Copyright (c) 2019 Albin Corén.
 - License: MIT. Full text: [REFERENCE-LICENSE.txt](transport/unet-worker/REFERENCE-LICENSE.txt).

@@ -1,5 +1,7 @@
 # Independent Go transport experiment
 
+Historical bounded experiment. The subsequent [multi-peer adapter record](go-transport-adapter.md) supersedes the small-message and aggregation limitations below where explicitly measured; production acceptance remains held.
+
 Date: 2026-10-07. Source: personal library revision `5654f4dacc9b56cb0f20d6165c84d8f782eb6dca`. Status: **experimental; not VPS-ready**.
 
 Follow-up source revision `6b3ec4f6aa2c2aeb32a6e7c65144e49723cf1ea9` adds measured sliding ACK advancement beyond 32 IDs. A separate 41-message native-client run passes: `ackUpper=48`, `ackBits=4294967168`, `pendingMessages=0`, `retransmissions=0`, `rejectedFrames=0`, with the registration reply accepted. The pre-wrap small-record restriction remains; this is not a completed long-lived session.

@@ -6,14 +6,26 @@ import (
 	"errors"
 )
 
-// These codecs support a measured 32-bit sliding ACK profile before ID wrap,
-// one small unfragmented message per datagram, and UCH channels 0..3.
-// They reject rollover, coalescing and unknown profiles instead of guessing.
+const UCHPacketSize = 1312
+
+// Reliable IDs are 16-bit; per-channel sequences wrap at 256 in the capture.
 type Message struct {
 	Channel         uint8
-	ReliableID      uint8
+	ReliableID      uint16
 	ChannelSequence uint8
 	Payload         []byte
+}
+
+// A container is ACKed once, including all its ordered message groups.
+type MessageGroup struct {
+	Channel         uint8
+	ChannelSequence uint8
+	Combined        bool
+	Payloads        [][]byte
+}
+type DataRecord struct {
+	ReliableID uint16
+	Groups     []MessageGroup
 }
 type DataPacket struct {
 	Destination  uint16
@@ -21,52 +33,128 @@ type DataPacket struct {
 	Tag          [2]byte
 	AckUpper     uint16
 	Acknowledged uint32
+	Records      []DataRecord
 	Message      *Message
 }
 
+// Lengths above 127 use two big-endian bytes with the top bit set.
+func readLength(p []byte, at *int) (int, error) {
+	if *at >= len(p) {
+		return 0, errors.New("missing length")
+	}
+	b := p[*at]
+	*at++
+	if b < 128 {
+		return int(b), nil
+	}
+	if *at >= len(p) {
+		return 0, errors.New("truncated extended length")
+	}
+	n := int(b&127)<<8 | int(p[*at])
+	*at++
+	if n < 128 {
+		return 0, errors.New("noncanonical length")
+	}
+	return n, nil
+}
+func appendLength(p []byte, n int) ([]byte, error) {
+	if n < 1 || n > UCHPacketSize {
+		return nil, errors.New("length outside UCH profile")
+	}
+	if n < 128 {
+		return append(p, byte(n)), nil
+	}
+	return append(p, byte(n>>8)|128, byte(n)), nil
+}
+func takeBody(p []byte, at *int) ([]byte, error) {
+	n, e := readLength(p, at)
+	if e != nil || n < 1 || n > len(p)-*at {
+		return nil, errors.New("truncated or empty body")
+	}
+	b := p[*at : *at+n]
+	*at += n
+	return b, nil
+}
 func ParseObservedData(p []byte) (DataPacket, error) {
-	if len(p) < 12 || len(p) > MaxDatagramSize || binary.BigEndian.Uint16(p[:2]) == 0 || !validAckUpper(binary.BigEndian.Uint16(p[6:8])) {
-		return DataPacket{}, errors.New("unsupported data framing or ACK profile")
+	if len(p) < 12 || len(p) > UCHPacketSize || binary.BigEndian.Uint16(p[:2]) == 0 || !validAckUpper(binary.BigEndian.Uint16(p[6:8])) {
+		return DataPacket{}, errors.New("unsupported framing or ACK epoch")
 	}
 	r := DataPacket{Destination: binary.BigEndian.Uint16(p[:2]), Counter: binary.BigEndian.Uint16(p[2:4]), Tag: [2]byte{p[4], p[5]}, AckUpper: binary.BigEndian.Uint16(p[6:8]), Acknowledged: binary.BigEndian.Uint32(p[8:12])}
-	if len(p) == 12 {
-		return r, nil
-	}
-	var m Message
-	var payload []byte
-	switch p[12] {
-	case 255:
-		if len(p) < 20 || int(binary.LittleEndian.Uint16(p[13:15])) != len(p)-14 || int(p[17]) != len(p)-18 || p[18] == 0 || (p[16] != 0 && p[16] != 3) {
-			return DataPacket{}, errors.New("unsupported reliable record")
+	at := 12
+	for at < len(p) {
+		marker := p[at]
+		at++
+		body, e := takeBody(p, &at)
+		if e != nil {
+			return DataPacket{}, e
 		}
-		m.Channel, m.ReliableID, m.ChannelSequence = p[16], p[15], p[18]
-		payload = p[19:]
-	case 1:
-		if len(p) < 15 || int(p[13]) != len(p)-14 {
-			return DataPacket{}, errors.New("unsupported unreliable record")
+		record := DataRecord{}
+		switch marker {
+		case 1:
+			record.Groups = []MessageGroup{{Channel: 1, Payloads: [][]byte{append([]byte(nil), body...)}}}
+		case 2:
+			if len(body) < 3 {
+				return DataPacket{}, errors.New("truncated all-cost record")
+			}
+			record.ReliableID = binary.BigEndian.Uint16(body[:2])
+			record.Groups = []MessageGroup{{Channel: 2, Payloads: [][]byte{append([]byte(nil), body[2:]...)}}}
+		case 255:
+			if len(body) < 5 {
+				return DataPacket{}, errors.New("truncated reliable container")
+			}
+			record.ReliableID = binary.BigEndian.Uint16(body[:2])
+			pos := 2
+			for pos < len(body) {
+				channel := body[pos]
+				pos++
+				combined := channel == 254
+				if combined {
+					if pos >= len(body) {
+						return DataPacket{}, errors.New("missing combined channel")
+					}
+					channel = body[pos]
+					pos++
+				}
+				if channel != 0 && channel != 3 {
+					return DataPacket{}, errors.New("unsupported reliable channel")
+				}
+				gb, e := takeBody(body, &pos)
+				if e != nil || len(gb) < 2 {
+					return DataPacket{}, errors.New("truncated reliable group")
+				}
+				g := MessageGroup{Channel: channel, ChannelSequence: gb[0], Combined: combined}
+				if combined {
+					sub := 1
+					for sub < len(gb) {
+						payload, e := takeBody(gb, &sub)
+						if e != nil {
+							return DataPacket{}, e
+						}
+						g.Payloads = append(g.Payloads, append([]byte(nil), payload...))
+					}
+				} else {
+					g.Payloads = [][]byte{append([]byte(nil), gb[1:]...)}
+				}
+				record.Groups = append(record.Groups, g)
+			}
+		default:
+			return DataPacket{}, errors.New("unsupported record marker")
 		}
-		m.Channel = 1
-		payload = p[14:]
-	case 2:
-		if len(p) < 17 || int(binary.LittleEndian.Uint16(p[13:15])) != len(p)-14 {
-			return DataPacket{}, errors.New("unsupported all-cost record")
+		if marker != 1 && record.ReliableID == 0 {
+			return DataPacket{}, errors.New("reliable epoch wrap not implemented")
 		}
-		m.Channel, m.ReliableID = 2, p[15]
-		payload = p[16:]
-	default:
-		return DataPacket{}, errors.New("unsupported record marker")
+		r.Records = append(r.Records, record)
 	}
-	if len(payload) > 126 || len(payload) == 0 || (m.Channel != 1 && m.ReliableID == 0) {
-		return DataPacket{}, errors.New("outside measured small-message profile")
+	if len(r.Records) == 1 && len(r.Records[0].Groups) == 1 && len(r.Records[0].Groups[0].Payloads) == 1 {
+		record := r.Records[0]
+		g := record.Groups[0]
+		r.Message = &Message{Channel: g.Channel, ReliableID: record.ReliableID, ChannelSequence: g.ChannelSequence, Payload: g.Payloads[0]}
 	}
-	m.Payload = append([]byte(nil), payload...)
-	r.Message = &m
 	return r, nil
 }
-
 func (r DataPacket) MarshalBinary() ([]byte, error) {
 	if r.Destination == 0 {
-		return nil, errors.New("data destination must be nonzero")
+		return nil, errors.New("destination must be nonzero")
 	}
 	out := make([]byte, 12)
 	binary.BigEndian.PutUint16(out[:2], r.Destination)
@@ -81,49 +169,94 @@ func (r DataPacket) MarshalBinary() ([]byte, error) {
 	}
 	binary.BigEndian.PutUint16(out[6:8], upper)
 	binary.BigEndian.PutUint32(out[8:12], r.Acknowledged)
-	if r.Message == nil {
-		return out, nil
+	records := r.Records
+	// Parsed packets expose a compatibility alias. Records remain authoritative.
+	if r.Message != nil && len(records) == 0 {
+		m := r.Message
+		records = []DataRecord{{ReliableID: m.ReliableID, Groups: []MessageGroup{{Channel: m.Channel, ChannelSequence: m.ChannelSequence, Payloads: [][]byte{m.Payload}}}}}
 	}
-	m := r.Message
-	n := len(m.Payload)
-	if n < 1 || n > 126 || m.Channel > 3 || (m.Channel != 1 && m.ReliableID == 0) {
-		return nil, errors.New("outside measured small-message profile")
+	for _, record := range records {
+		if len(record.Groups) == 0 {
+			return nil, errors.New("empty record")
+		}
+		first := record.Groups[0]
+		var marker byte
+		var body []byte
+		switch first.Channel {
+		case 1, 2:
+			if len(record.Groups) != 1 || len(first.Payloads) != 1 || first.ChannelSequence != 0 || first.Combined {
+				return nil, errors.New("invalid nonsequenced group")
+			}
+			marker = first.Channel
+			if marker == 1 {
+				if record.ReliableID != 0 {
+					return nil, errors.New("unreliable record has ID")
+				}
+			} else {
+				if record.ReliableID == 0 {
+					return nil, errors.New("reliable epoch wrap not implemented")
+				}
+				body = binary.BigEndian.AppendUint16(body, record.ReliableID)
+			}
+			if len(first.Payloads[0]) == 0 {
+				return nil, errors.New("empty payload")
+			}
+			body = append(body, first.Payloads[0]...)
+		case 0, 3:
+			if record.ReliableID == 0 {
+				return nil, errors.New("reliable epoch wrap not implemented")
+			}
+			marker = 255
+			body = binary.BigEndian.AppendUint16(body, record.ReliableID)
+			for _, g := range record.Groups {
+				if (g.Channel != 0 && g.Channel != 3) || len(g.Payloads) == 0 {
+					return nil, errors.New("invalid reliable group")
+				}
+				combined := g.Combined || len(g.Payloads) > 1
+				if combined {
+					body = append(body, 254)
+				}
+				body = append(body, g.Channel)
+				gb := []byte{g.ChannelSequence}
+				for _, payload := range g.Payloads {
+					if len(payload) == 0 {
+						return nil, errors.New("empty payload")
+					}
+					if combined {
+						var e error
+						gb, e = appendLength(gb, len(payload))
+						if e != nil {
+							return nil, e
+						}
+					}
+					gb = append(gb, payload...)
+				}
+				var e error
+				body, e = appendLength(body, len(gb))
+				if e != nil {
+					return nil, e
+				}
+				body = append(body, gb...)
+			}
+		default:
+			return nil, errors.New("unsupported channel")
+		}
+		out = append(out, marker)
+		var e error
+		out, e = appendLength(out, len(body))
+		if e != nil {
+			return nil, e
+		}
+		out = append(out, body...)
+		if len(out) > UCHPacketSize {
+			return nil, errors.New("datagram exceeds UCH packet size")
+		}
 	}
-	var record []byte
-	switch m.Channel {
-	case 0, 3:
-		if m.ChannelSequence == 0 {
-			return nil, errors.New("unsupported reliable sequence")
-		}
-		record = make([]byte, 7+n)
-		record[0] = 255
-		binary.LittleEndian.PutUint16(record[1:3], uint16(n+5))
-		record[3], record[4], record[5], record[6] = m.ReliableID, m.Channel, byte(n+1), m.ChannelSequence
-		copy(record[7:], m.Payload)
-	case 1:
-		if m.ReliableID != 0 || m.ChannelSequence != 0 {
-			return nil, errors.New("unreliable channel has no observed sequence fields")
-		}
-		record = append([]byte{1, byte(n)}, m.Payload...)
-	case 2:
-		if m.ChannelSequence != 0 {
-			return nil, errors.New("all-cost channel has no observed channel sequence")
-		}
-		record = make([]byte, 4+n)
-		record[0] = 2
-		binary.LittleEndian.PutUint16(record[1:3], uint16(n+2))
-		record[3] = m.ReliableID
-		copy(record[4:], m.Payload)
-	}
-	return append(out, record...), nil
+	return out, nil
 }
-
-// ObserveEarlyID marks only IDs 1..32. The caller must validate the peer/tag,
-// channel ordering and payload before acknowledging anything. This is not a
-// rolling reliability window or authentication mechanism.
-func ObserveEarlyID(mask uint32, id uint8) (updated uint32, duplicate bool, err error) {
+func ObserveEarlyID(mask uint32, id uint16) (updated uint32, duplicate bool, err error) {
 	if id < 1 || id > 32 {
-		return mask, false, errors.New("ACK rollover is not implemented")
+		return mask, false, errors.New("outside initial ACK window")
 	}
 	bit := uint32(1) << (32 - id)
 	return mask | bit, mask&bit != 0, nil

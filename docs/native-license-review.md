@@ -1,5 +1,7 @@
 # Native dependency license review
 
+The full short notice extracted from the official April 2018 ZIP is preserved verbatim in [unet-official-2018-notice.txt](licenses/unet-official-2018-notice.txt). It links to UCL; it is not an embedded, versioned full UCL. Adding this evidence does not approve a DLL deployment. No Unity binaries are included.
+
 The project records dependency provenance and licensing decisions in this repository. No outreach message is planned or has been sent. See the [binary provenance and license evidence](native-dependencies.md) for hashes, pinned origins, official package comparisons and historical/current UCL references.
 
 ## Pending review

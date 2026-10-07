@@ -5,7 +5,7 @@ import "testing"
 
 func TestMeasuredACKWindowAdvance(t *testing.T) {
 	var w AckWindow
-	for id := uint8(1); id <= 41; id++ {
+	for id := uint16(1); id <= 41; id++ {
 		duplicate, e := w.Observe(id)
 		if e != nil || duplicate || !w.Acknowledges(id) {
 			t.Fatalf("ID %d: %+v %v", id, w, e)
@@ -55,7 +55,7 @@ func TestACKLossReorderAndJump(t *testing.T) {
 	if w.Upper != 96 || w.Bits != 64 || w.Acknowledges(4) {
 		t.Fatal("jump window")
 	}
-	for _, upper := range []uint16{1, 31, 33, 264} {
+	for _, upper := range []uint16{1, 31, 33, 65535} {
 		bad := AckWindow{Upper: upper}
 		if _, e := bad.Observe(1); e == nil {
 			t.Fatal("invalid window accepted")

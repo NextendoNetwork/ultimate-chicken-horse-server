@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"uch-server/internal/relayrouter"
-	"uch-server/internal/unetwire"
 	"net"
 	"net/netip"
 	"os"
 	"time"
+	"uch-server/internal/relayrouter"
+	"uch-server/internal/unetwire"
 )
 
 type pendingMessage struct {
@@ -47,9 +47,9 @@ func main() {
 	var remoteClock uint32
 	counter := uint16(1)
 	ack := wire.AckWindow{Upper: 32}
-	outgoingID := uint8(0)
+	outgoingID := uint16(0)
 	channelSequence := [4]uint8{}
-	pending := map[uint8]pendingMessage{}
+	pending := map[uint16]pendingMessage{}
 	router := relay.New(netip.MustParseAddr("127.0.0.1"), 1)
 	receivedMessages, sentMessages, retransmissions, rejected := 0, 0, 0, 0
 	controlReceived := false
@@ -142,36 +142,46 @@ func main() {
 				delete(pending, id)
 			}
 		}
-		message := packet.Message
-		if message == nil {
-			continue
-		}
-		if message.ReliableID != 0 {
-			duplicate, e := ack.Observe(message.ReliableID)
-			if e != nil {
-				rejected++
-				continue
+		for _, record := range packet.Records {
+			if record.ReliableID != 0 {
+				duplicate, err := ack.Observe(record.ReliableID)
+				if err != nil {
+					rejected++
+					continue
+				}
+				sendData(nil)
+				if duplicate {
+					continue
+				}
 			}
-			sendData(nil)
-			if duplicate {
-				continue
+			for _, group := range record.Groups {
+				for _, payload := range group.Payloads {
+					receivedMessages++
+					actions := router.Handle(1, from.AddrPort(), group.Channel, payload)
+					for _, action := range actions {
+						if action.Disconnect || action.Peer != 1 || action.Channel > 3 || outgoingID >= 65520 {
+							rejected++
+							continue
+						}
+						response := wire.Message{Channel: action.Channel, Payload: action.Payload}
+						if action.Channel != 1 {
+							outgoingID++
+							response.ReliableID = outgoingID
+						}
+						if action.Channel == 0 || action.Channel == 3 {
+							channelSequence[action.Channel]++
+							response.ChannelSequence = channelSequence[action.Channel]
+						}
+						sendData(&response)
+						if response.ReliableID != 0 {
+							pending[outgoingID] = pendingMessage{response, time.Now()}
+						}
+						sentMessages++
+					}
+				}
 			}
-		}
-		receivedMessages++
-		actions := router.Handle(1, from.AddrPort(), message.Channel, message.Payload)
-		for _, action := range actions {
-			if action.Disconnect || action.Peer != 1 || action.Channel > 3 || outgoingID >= 255 {
-				rejected++
-				continue
-			}
-			outgoingID++
-			channelSequence[action.Channel]++
-			response := wire.Message{Channel: action.Channel, ReliableID: outgoingID, ChannelSequence: channelSequence[action.Channel], Payload: action.Payload}
-			sendData(&response)
-			pending[outgoingID] = pendingMessage{response, time.Now()}
-			sentMessages++
 		}
 	}
-	json.NewEncoder(os.Stdout).Encode(map[string]any{"experiment": "Go-only-loopback-sliding-ACK-profile", "controlReceived": controlReceived, "receivedMessages": receivedMessages, "sentMessages": sentMessages, "pendingMessages": len(pending), "retransmissions": retransmissions, "rejectedFrames": rejected, "ackUpper": ack.Upper, "ackBits": ack.Bits, "scope": "one synthetic peer; small messages; IDs before 255 wrap; no aggregation/fragmentation/production auth"})
+	json.NewEncoder(os.Stdout).Encode(map[string]any{"experiment": "Go-only-loopback-sliding-ACK-profile", "controlReceived": controlReceived, "receivedMessages": receivedMessages, "sentMessages": sentMessages, "pendingMessages": len(pending), "retransmissions": retransmissions, "rejectedFrames": rejected, "ackUpper": ack.Upper, "ackBits": ack.Bits, "scope": "one synthetic peer; measured UCH records including aggregation; no 16-bit wrap/production auth"})
 }
 func fail(s string) { fmt.Fprintln(os.Stderr, s); os.Exit(2) }

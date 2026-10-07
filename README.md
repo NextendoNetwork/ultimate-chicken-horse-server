@@ -1,6 +1,6 @@
 # Ultimate Chicken Horse server for Nextendo integration
 
-Go implementation of the observed UCH authentication, lobby and relay-allocation contracts, with investigation notes and an independently supplied native UNET transport worker.
+Go implementation of the observed UCH authentication, lobby and relay-allocation contracts, with an experimental Go UDP transport and records of the earlier native-worker campaign.
 
 Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328`). This game uses brainCloud-compatible RPC scripts and MLAPI/UNET gameplay transport; it is separate from the NPLN Classics servers.
 
@@ -10,14 +10,18 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 | --- | --- |
 | TLS API, authentication, lobby lifecycle and regional allocation | Go; package tests pass |
 | Nextendo production login | Go RS256/account-proof verification, open account enrollment and required `/internal/online-check`; deployed-service acceptance pending |
-| UCH application relay routing | Imported Go source under `internal/relayrouter`; adapter integration pending |
-| UNET UDP handshake, reliability, fragmentation and keepalive | Still supplied by the legacy .NET/native worker; **not yet replaced by Go** |
+| UCH application relay routing | Connected to the experimental Go adapter under `internal/unettransport`; synthetic host/guest routing passes |
+| UNET UDP handshake, reliable delivery and keepalive | Experimental Go adapter handles the measured UCH profile; real-game acceptance and production gates remain pending |
 
-An [experimental Go loopback adapter](docs/go-transport-experiment.md) now establishes a connection, ACKs small messages on the measured profile and returns room registration to a native reference client. Full transport/real-game acceptance remains incomplete; this experiment does not change the no-VPS status.
+The [multi-peer Go adapter](docs/go-transport-adapter.md) handles large and grouped records, ordered delivery, channel-byte sequence wrap, retransmission and disconnect cleanup. Two private native reference clients joined one Go-only room and exchanged a large message and targeted reply. This is synthetic interoperability, not real-game acceptance or approval for the VPS.
 
-**This repository is not yet a complete Go gameplay server.** The imported router is not connected to a UNET wire adapter. The operator requested retaining the external original worker for compatibility staging while the Go replacement is completed. It requires three private Unity-related DLLs whose applicable runtime terms remain unresolved. See [native staging](docs/native-staging.md), [imported Go components](docs/imported-go-components.md), [Go migration](docs/go-migration.md) and [deployment decision](docs/native-deployment-decision.md).
+**Production release remains held.** The Go API can read room-state snapshots from `cmd/unet-staging` for a DLL-free staging path. The new adapter still lacks full reliable-ID epoch wrap, production transport/account binding and completed real-game acceptance. The earlier original-worker path depends on three private Unity-related DLLs whose runtime terms remain unresolved. See [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
 
-### Manual game tests against the Go control plane
+### First game test with the new Go transport
+
+Physical Switch-host / Citron-guest: both entered and played, operator-confirmed on 2026-10-07. See [Go-only acceptance](docs/go-only-acceptance.md) for runtime hashes, selected transport and limits. The remaining platform/recovery campaign and production gates are pending.
+
+### Earlier manual game tests against the Go control plane
 
 | Pair | Operator-confirmed result |
 | --- | --- |

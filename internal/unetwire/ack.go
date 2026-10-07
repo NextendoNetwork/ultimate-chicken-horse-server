@@ -5,15 +5,15 @@ import "errors"
 
 // AckWindow preserves a 32-bit bitmap covering IDs Upper-31 through Upper.
 // Reference measurements advanced Upper by eight on ID 33, then ID 41.
-// This implementation deliberately rejects the unmeasured post-255 epoch.
+// This implementation deliberately rejects the unmeasured 16-bit epoch wrap.
 type AckWindow struct {
 	Upper uint16
 	Bits  uint32
 }
 
-func validAckUpper(upper uint16) bool { return upper >= 32 && upper <= 256 && upper%8 == 0 }
+func validAckUpper(upper uint16) bool { return upper >= 32 && upper <= 65528 && upper%8 == 0 }
 
-func (w AckWindow) Acknowledges(id uint8) bool {
+func (w AckWindow) Acknowledges(id uint16) bool {
 	if id == 0 || !validAckUpper(w.Upper) {
 		return false
 	}
@@ -27,8 +27,8 @@ func (w AckWindow) Acknowledges(id uint8) bool {
 // Observe must be called only after validating the peer, profile and payload.
 // Old IDs outside the bitmap are treated as duplicates, never newly delivered.
 // Ordering, replay epochs and reliable-ID wrap are transport responsibilities.
-func (w *AckWindow) Observe(id uint8) (duplicate bool, err error) {
-	if id == 0 {
+func (w *AckWindow) Observe(id uint16) (duplicate bool, err error) {
+	if id == 0 || id > 65528 {
 		return false, errors.New("reliable ID wrap is not implemented")
 	}
 	if w.Upper == 0 {
