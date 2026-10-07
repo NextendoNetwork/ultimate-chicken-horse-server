@@ -47,6 +47,7 @@ The Go service serves TLS `/dispatcherv2`, regional protobuf allocation routes a
 - [Historical investigation](docs/history)
 - [Licensing and provenance](docs/licensing.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
+- [Network address privacy](docs/privacy.md)
 
 ## Contributors
 

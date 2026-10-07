@@ -104,7 +104,7 @@ func TestSessionRenewalAndLogout(t *testing.T) {
 	}
 }
 func publish(t *testing.T, f *fixture, sid, owner string) Object {
-	return f.script(t, sid, "events/setLobbyData", Object{"matchID": owner, "matchData": Object{"externalIPAddress": "192.168.1.10", "port": "17778", "privacy": "Public", "joinable": "True", "numPlayers": 0, "version": "1.13.13.765"}})
+	return f.script(t, sid, "events/setLobbyData", Object{"matchID": owner, "matchData": Object{"externalIPAddress": "192.0.2.10", "port": "17778", "privacy": "Public", "joinable": "True", "numPlayers": 0, "version": "1.13.13.765"}})
 }
 func TestPublicationReservationsAndRecreation(t *testing.T) {
 	f := newFixture(t)
@@ -205,7 +205,7 @@ func TestRelaySnapshotIsolationAndExpiry(t *testing.T) {
 	raw, _ := json.Marshal(snapshot)
 	os.WriteFile(path, raw, 0600)
 	r := &FileRelay{path, "127.0.0.2", 18888, map[string]bool{"127.0.0.1": true}, func() time.Time { return now }}
-	ep, ok := r.Resolve(Object{"externalIPAddress": "192.168.1.10", "port": "17778"})
+	ep, ok := r.Resolve(Object{"externalIPAddress": "192.0.2.10", "port": "17778"})
 	if !ok || !r.Alive(ep) {
 		t.Fatal("local endpoint resolution failed")
 	}
