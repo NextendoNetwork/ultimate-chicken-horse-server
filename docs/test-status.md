@@ -7,7 +7,7 @@
 | Ryujinx/Ryujinx | Owner confirmed room entry and gameplay; V17 remained during AFK | Exact duration and same-process recreation not separately recorded |
 | Ryujinx host/Citron guest | Owner confirmed connection and AFK persistence after Citron V2 | Reverse direction not separately confirmed |
 | Citron/Citron | Owner confirmed V4 works, including leaving and rejoining | Full-level completion, host reversal and AFK timing not separately recorded |
-| Ryujinx/Switch | Python lab records Switch room updates/heartbeats; Switch host/Ryujinx guest relay join and channel data succeeded after the guest bind correction | Manual level gameplay, timed AFK/recovery and Go acceptance remain to be recorded; see [routing evidence](switch-testing.md) |
+| Ryujinx/Switch | Owner confirmed Switch host/Ryujinx guest room entry; V18 Ryujinx host/Switch guest discovery and native join logged after preserving host port 17778 | Reverse visual confirmation, level gameplay, timed AFK/recovery and Go acceptance remain to be recorded; see [routing evidence](switch-testing.md) |
 | Citron/Switch | Pending | No success claimed |
 | Four online clients / separate networks | Pending | Local controllers are not separate online clients |
 
