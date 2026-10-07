@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"uch-server/internal/relayrouter"
+	"uch-server/internal/unetwire"
 	"net"
 	"net/netip"
 	"os"
 	"time"
-	"uch-server/internal/relayrouter"
-	"uch-server/internal/unetwire"
 )
 
 type pendingMessage struct {
@@ -46,7 +46,7 @@ func main() {
 	var remoteHeader wire.SystemHeader
 	var remoteClock uint32
 	counter := uint16(1)
-	ack := uint32(0)
+	ack := wire.AckWindow{Upper: 32}
 	outgoingID := uint8(0)
 	channelSequence := [4]uint8{}
 	pending := map[uint8]pendingMessage{}
@@ -57,7 +57,7 @@ func main() {
 		if peer == nil {
 			return
 		}
-		packet, err := (wire.DataPacket{Destination: remoteHeader.SourceConnection, Counter: counter, Tag: localTag, Acknowledged: ack, Message: message}).MarshalBinary()
+		packet, err := (wire.DataPacket{Destination: remoteHeader.SourceConnection, Counter: counter, Tag: localTag, AckUpper: ack.Upper, Acknowledged: ack.Bits, Message: message}).MarshalBinary()
 		if err != nil {
 			rejected++
 			return
@@ -138,8 +138,7 @@ func main() {
 			continue
 		}
 		for id := range pending {
-			bit := uint32(1) << (32 - id)
-			if packet.Acknowledged&bit != 0 {
+			if (wire.AckWindow{Upper: packet.AckUpper, Bits: packet.Acknowledged}).Acknowledges(id) {
 				delete(pending, id)
 			}
 		}
@@ -148,12 +147,11 @@ func main() {
 			continue
 		}
 		if message.ReliableID != 0 {
-			updated, duplicate, e := wire.ObserveEarlyID(ack, message.ReliableID)
+			duplicate, e := ack.Observe(message.ReliableID)
 			if e != nil {
 				rejected++
 				continue
 			}
-			ack = updated
 			sendData(nil)
 			if duplicate {
 				continue
@@ -162,7 +160,7 @@ func main() {
 		receivedMessages++
 		actions := router.Handle(1, from.AddrPort(), message.Channel, message.Payload)
 		for _, action := range actions {
-			if action.Disconnect || action.Peer != 1 || action.Channel > 3 || outgoingID >= 32 {
+			if action.Disconnect || action.Peer != 1 || action.Channel > 3 || outgoingID >= 255 {
 				rejected++
 				continue
 			}
@@ -174,6 +172,6 @@ func main() {
 			sentMessages++
 		}
 	}
-	json.NewEncoder(os.Stdout).Encode(map[string]any{"experiment": "Go-only-loopback-early-ACK-profile", "controlReceived": controlReceived, "receivedMessages": receivedMessages, "sentMessages": sentMessages, "pendingMessages": len(pending), "retransmissions": retransmissions, "rejectedFrames": rejected, "scope": "one synthetic peer; small messages; first 32 reliable IDs; no fragmentation/rollover/production auth"})
+	json.NewEncoder(os.Stdout).Encode(map[string]any{"experiment": "Go-only-loopback-sliding-ACK-profile", "controlReceived": controlReceived, "receivedMessages": receivedMessages, "sentMessages": sentMessages, "pendingMessages": len(pending), "retransmissions": retransmissions, "rejectedFrames": rejected, "ackUpper": ack.Upper, "ackBits": ack.Bits, "scope": "one synthetic peer; small messages; IDs before 255 wrap; no aggregation/fragmentation/production auth"})
 }
 func fail(s string) { fmt.Fprintln(os.Stderr, s); os.Exit(2) }

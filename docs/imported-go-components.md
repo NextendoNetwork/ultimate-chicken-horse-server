@@ -2,6 +2,8 @@
 
 Source: personal private repository `SoulToxic3119/unity-unet-go`, revision `e73e0d9a90d4549c65c9a1ecd224b1f60727320d`, imported 2026-10-07 at the owner's request. Control/data/ACK framing and the experimental loopback command were subsequently imported from `5654f4dacc9b56cb0f20d6165c84d8f782eb6dca`.
 
+Sliding ACK source/tests and the associated command/data-codec update are imported from `6b3ec4f6aa2c2aeb32a6e7c65144e49723cf1ea9`. The only command adaptation remains its local UCH import paths. Source/test licenses remain MIT, with the historical router attribution preserved.
+
 | UCH destination | Source paths | Terms | Runtime status |
 | --- | --- | --- | --- |
 | `internal/relayrouter/` | `relay/router.go`, `relay/router_test.go` | MIT authored-source notice plus MIT Albin Corén/Nextendo reference notice, both retained alongside the files | Compiles/tests locally; not connected to a UNET adapter |

@@ -6,7 +6,7 @@ import (
 	"errors"
 )
 
-// These codecs deliberately support only the measured early 32-ID ACK profile,
+// These codecs support a measured 32-bit sliding ACK profile before ID wrap,
 // one small unfragmented message per datagram, and UCH channels 0..3.
 // They reject rollover, coalescing and unknown profiles instead of guessing.
 type Message struct {
@@ -19,15 +19,16 @@ type DataPacket struct {
 	Destination  uint16
 	Counter      uint16
 	Tag          [2]byte
+	AckUpper     uint16
 	Acknowledged uint32
 	Message      *Message
 }
 
 func ParseObservedData(p []byte) (DataPacket, error) {
-	if len(p) < 12 || len(p) > MaxDatagramSize || binary.BigEndian.Uint16(p[:2]) == 0 || binary.BigEndian.Uint16(p[6:8]) != 32 {
+	if len(p) < 12 || len(p) > MaxDatagramSize || binary.BigEndian.Uint16(p[:2]) == 0 || !validAckUpper(binary.BigEndian.Uint16(p[6:8])) {
 		return DataPacket{}, errors.New("unsupported data framing or ACK profile")
 	}
-	r := DataPacket{Destination: binary.BigEndian.Uint16(p[:2]), Counter: binary.BigEndian.Uint16(p[2:4]), Tag: [2]byte{p[4], p[5]}, Acknowledged: binary.BigEndian.Uint32(p[8:12])}
+	r := DataPacket{Destination: binary.BigEndian.Uint16(p[:2]), Counter: binary.BigEndian.Uint16(p[2:4]), Tag: [2]byte{p[4], p[5]}, AckUpper: binary.BigEndian.Uint16(p[6:8]), Acknowledged: binary.BigEndian.Uint32(p[8:12])}
 	if len(p) == 12 {
 		return r, nil
 	}
@@ -55,7 +56,7 @@ func ParseObservedData(p []byte) (DataPacket, error) {
 	default:
 		return DataPacket{}, errors.New("unsupported record marker")
 	}
-	if len(payload) > 126 || len(payload) == 0 || (m.Channel != 1 && (m.ReliableID == 0 || m.ReliableID > 32)) {
+	if len(payload) > 126 || len(payload) == 0 || (m.Channel != 1 && m.ReliableID == 0) {
 		return DataPacket{}, errors.New("outside measured small-message profile")
 	}
 	m.Payload = append([]byte(nil), payload...)
@@ -71,14 +72,21 @@ func (r DataPacket) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint16(out[:2], r.Destination)
 	binary.BigEndian.PutUint16(out[2:4], r.Counter)
 	copy(out[4:6], r.Tag[:])
-	binary.BigEndian.PutUint16(out[6:8], 32)
+	upper := r.AckUpper
+	if upper == 0 {
+		upper = 32
+	}
+	if !validAckUpper(upper) {
+		return nil, errors.New("unsupported ACK epoch")
+	}
+	binary.BigEndian.PutUint16(out[6:8], upper)
 	binary.BigEndian.PutUint32(out[8:12], r.Acknowledged)
 	if r.Message == nil {
 		return out, nil
 	}
 	m := r.Message
 	n := len(m.Payload)
-	if n < 1 || n > 126 || m.Channel > 3 || (m.Channel != 1 && (m.ReliableID < 1 || m.ReliableID > 32)) {
+	if n < 1 || n > 126 || m.Channel > 3 || (m.Channel != 1 && m.ReliableID == 0) {
 		return nil, errors.New("outside measured small-message profile")
 	}
 	var record []byte
