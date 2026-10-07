@@ -7,7 +7,7 @@
 | Ryujinx/Ryujinx | Owner confirmed room entry and gameplay; V17 remained during AFK | Exact duration and same-process recreation not separately recorded |
 | Ryujinx host/Citron guest | Owner confirmed connection and AFK persistence after Citron V2 | Reverse direction not separately confirmed |
 | Citron/Citron | Owner confirmed V4 works, including leaving and rejoining | Full-level completion, host reversal and AFK timing not separately recorded |
-| Ryujinx/Switch | Pending installation and setup | No success claimed |
+| Ryujinx/Switch | Console reaches the LAN lab and accepts TLS; account-verifier experiment awaiting retry | Original login returned 40307; no room entry or gameplay success claimed |
 | Citron/Switch | Pending | No success claimed |
 | Four online clients / separate networks | Pending | Local controllers are not separate online clients |
 
@@ -26,3 +26,5 @@ A separate temporary TLS process on port 8443 also passed certificate/hostname v
 3. Record actual AFK duration, loaded title version/Build ID, server revision and client revision.
 4. Verify normal logout, transport loss, stale room disappearance and rehosting without process restart.
 5. Validate Nextendo account integration in staging before public deployment.
+
+The current console-authentication experiment uses the Python lab, not the Go service. Its 34 automated checks cover the existing lab contracts, enrolled LAN endpoints and RS256/proof verification, including altered signatures, scope/identity mismatches, expired tokens and account rejection. These checks do not establish acceptance on a physical Switch. See the [owner's VPS gates](nextendo-integration.md).

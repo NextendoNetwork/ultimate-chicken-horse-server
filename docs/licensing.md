@@ -32,6 +32,8 @@ The Go implementation uses the standard library and contains no vendored Go modu
 
 ## Packaging and integration handoff
 
+The three private native input files now have an explicit [provenance and hash record](native-dependencies.md). Their applicable binary terms remain unresolved; this is an open VPS deployment gate.
+
 1. Include `LICENSE.md`, `THIRD_PARTY_NOTICES.md`, `CREDITS.md`, and this component inventory with source distributions.
 2. Preserve both MIT texts and copyright notices when packaging worker source separately.
 3. Keep private native dependencies outside this repository. Establish their licensing and a reproducible supply/build process before packaging a deployable worker.
