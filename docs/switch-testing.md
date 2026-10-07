@@ -12,3 +12,11 @@ The original successful emulator lab was loopback-only. It has since been adapte
 6. Test Ryujinx/Switch first, then Citron/Switch, including host reversal, level gameplay, leaving/rejoining and timed AFK.
 
 No Switch-ready patch, authentication bypass or completed console pairing is supplied or certified by this initial repository. Complete these stages against the actual version/Build ID rather than reusing a Classics patch.
+
+## Ryujinx guest routing regression (2026-10-06)
+
+With the Switch hosting, the Alcalde Ryujinx guest reached discovery but failed transport setup: its trace showed a LAN-bound UDP socket sending to the PC's loopback relay, followed by repeated Windows socket error 10049. The relay did not log a new connection for that attempt. A responsive room/control plane therefore did not establish gameplay connectivity.
+
+The private lab launcher previously enabled `NEXTENDO_UCH_EPHEMERAL_UDP=1` only for the Soul emulator identity. It now enables the existing title-scoped lab bind normalization for both identities when `-LocalBackend` is explicitly selected. Eligible guest UDP binds use the wildcard address and an OS-assigned port, allowing loopback routing and independent client ports. A standalone wildcard-to-loopback UDP probe passed on the test PC. This is a launcher correction for the current emulator lab; it is not a production account or console patch.
+
+The subsequent guest run logged wildcard bind normalization and no repeated 10049 failures. At 2026-10-07T03:17:17Z the existing relay recorded a second native connection and `guest joined`, followed by data on channels 0 and 1 with `error=0`. The Switch host and server remained running during this retry. This establishes successful transport join after the launcher correction. Manual level gameplay, timed AFK and leave/rejoin acceptance still need confirmation; this run uses the Python control plane, not Go.
