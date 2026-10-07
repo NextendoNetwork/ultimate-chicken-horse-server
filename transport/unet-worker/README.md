@@ -2,6 +2,8 @@
 
 This source preserves the MLAPI relay router adapted and tested during the UCH lab. Reference: MidLevel/MLAPI.Relay, MIT, copyright 2019 Albin Corén; see `REFERENCE-LICENSE.txt`.
 
+This directory, including its local adaptations, is licensed under [MIT](LICENSE.txt), as an explicit exception to the repository's root PolyForm Shield license. See [licensing and provenance](../../docs/licensing.md) for the component boundaries and private dependency exclusions.
+
 The gameplay wire transport is provided by separately obtained `UNETServerAssembly.dll`, `UnityEngine.dll` and `UNETServerDLL.dll`. Those binary inputs are not distributed in this repository. The MIT reference-source notice does not establish redistribution rights for the native binaries.
 
 With .NET SDK 10 and the required local dependencies:

@@ -1,4 +1,6 @@
-// Protocol reference: MidLevel/MLAPI.Relay, MIT, Copyright (c) 2019 Albin Corén.
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Albin Corén (MLAPI.Relay protocol reference).
+// Copyright (c) 2026 Nextendo Network (local UCH worker adaptations).
 // This loopback experiment does not redistribute its private native dependencies.
 using System.Buffers.Binary;
 using System.Diagnostics;

@@ -43,6 +43,12 @@ The Go service serves TLS `/dispatcherv2`, regional protobuf allocation routes a
 - [Emulator changes](docs/client-fixes.md)
 - [Switch test prerequisites](docs/switch-testing.md)
 - [Historical investigation](docs/history)
+- [Licensing and provenance](docs/licensing.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
+
+## License
+
+Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The [UNET worker directory](transport/unet-worker/LICENSE.txt) is licensed under MIT, with the original reference notice preserved. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
 
 Local credentials issued here are explicitly marked `uch-local-lab` and title-scoped. They are not Nintendo credentials or production Nextendo authentication. Do not deploy the lab identity verifier as a production account service.
 
