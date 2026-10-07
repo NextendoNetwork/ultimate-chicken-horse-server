@@ -11,10 +11,10 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 | Ryujinx / Ryujinx | Joining and gameplay; room remains during AFK |
 | Ryujinx host / Citron guest | Joining; both remain during AFK |
 | Citron / Citron | Creating, joining, leaving and rejoining |
-| Ryujinx / Switch | In progress: Python lab records console room updates and heartbeats |
-| Citron / Switch | Pending |
+| Ryujinx / Switch | Confirmed in both host directions; clients remain in the room (Ryujinx V18) |
+| Citron / Switch | Confirmed in both host directions (Citron V4) |
 
-The manual results above used the original Python control plane and native relay. **They do not certify the Go migration.** Exact AFK durations, both host directions and four-player coverage were not separately established. See [test status](docs/test-status.md).
+The operator confirmed the requested local pairing tests are complete. They used the original Python control plane and native relay. **They do not certify the Go migration.** Exact AFK durations, four-player coverage and every recovery scenario were not individually timed or recorded. Both emulator/Switch host directions are confirmed. See [test status](docs/test-status.md) and the [staging handoff](docs/staging-handoff.md).
 
 ## Build and run
 

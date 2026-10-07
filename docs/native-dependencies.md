@@ -39,6 +39,12 @@ Comparison against the June ZIP's `lib/` directory:
 
 None of the three April `lib/` files matches the tested inputs. A mismatch does not by itself prove unauthorized modification; it leaves the exact official release/build unconfirmed. Do not silently replace tested DLLs with these downloads: compatibility and licensing need separate review.
 
+### Native PE comparison
+
+The tested and June official `UNETServerDLL.dll` differ at only 24 byte positions. All differences are within parsed PE build metadata: the COFF timestamp (offset `0x110`, four bytes), three debug-directory timestamps (`0x64604`, `0x64620`, `0x6463c`, four bytes each), and the CodeView RSDS GUID (`0x65110`, sixteen bytes). Masking only those fields produces byte-identical files with SHA-256 `320ea479fa96df78d6cf0264cd4f84b1b718ff83d45ae2be48e1966a5ae21f61`. Their `.text` section hashes both equal `88844228b458139f340ce29595be3b66ffa264d2c344306dabe73d963d127c4a`.
+
+This supports the inference that their native code contents match while build metadata differs. It does not turn them into identical original files or establish permission. Reproduce with `python scripts/compare-unet-pe.py TESTED_DLL OFFICIAL_JUNE_ZIP`; the script reads files without executing them. `UnityEngine.dll` still lacks an exact official build match.
+
 ## License versions and scope
 
 A contemporaneous [Unity-owned repository preserves UCL 1.0 at a January 2018 revision](https://github.com/Unity-Technologies/ConditionalCompilationUtility/blob/0ae4f915f7918008297fcd971995d15c7f266de9/LICENSE). Its raw text SHA-256 is `c612f77336360a7acbf633edcce828488f8f80beb48f89366693c07249034133`. This is historical context, **not proof that this version governs these DLLs**. Section 1 ties use to Engine License-dependent content; section 5 requires license/copyright notices and respects separate third-party terms.

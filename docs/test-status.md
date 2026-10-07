@@ -2,13 +2,15 @@
 
 ## Original lab: manual reports
 
+On 2026-10-06 the operator confirmed the requested local pairing campaign is complete, including Switch host/Citron guest. These are operator reports supported by recorded native joins, not an automated certification of every unmeasured scenario.
+
 | Test | Result | Limits |
 | --- | --- | --- |
 | Ryujinx/Ryujinx | Owner confirmed room entry and gameplay; V17 remained during AFK | Exact duration and same-process recreation not separately recorded |
 | Ryujinx host/Citron guest | Owner confirmed connection and AFK persistence after Citron V2 | Reverse direction not separately confirmed |
 | Citron/Citron | Owner confirmed V4 works, including leaving and rejoining | Full-level completion, host reversal and AFK timing not separately recorded |
 | Ryujinx/Switch | Owner confirmed entry in both host directions and that the clients remain in the room after V18; reverse native join logged after preserving host port 17778 | Exact AFK duration, full level gameplay/recovery and Go acceptance remain to be recorded; see [routing evidence](switch-testing.md) |
-| Citron/Switch | Owner confirmed Citron V4 host/Switch guest works; native join logged in both directions, including Switch host/Citron guest | Reverse visual confirmation, exact gameplay/AFK duration and leave/rejoin not separately recorded; Go acceptance pending |
+| Citron/Switch | Owner confirmed working room entry/gameplay in both host directions; native joins also logged (Citron V4) | Exact gameplay/AFK duration and leave/rejoin not individually recorded; Go acceptance pending |
 | Four online clients / separate networks | Pending | Local controllers are not separate online clients |
 
 ## Go migration
@@ -22,9 +24,9 @@ A separate temporary TLS process on port 8443 also passed certificate/hostname v
 ## Remaining acceptance sequence
 
 1. Repeat two-emulator discovery, join, level gameplay, leave/rejoin, timed AFK and recreation on the Go control plane.
-2. Test Ryujinx/Switch, then Citron/Switch, with both host directions.
+2. Repeat the now-confirmed Ryujinx/Switch and Citron/Switch pairings in both host directions on the Go staging service.
 3. Record actual AFK duration, loaded title version/Build ID, server revision and client revision.
 4. Verify normal logout, transport loss, stale room disappearance and rehosting without process restart.
 5. Validate Nextendo account integration in staging before public deployment.
 
-The Python lab's 34 checks cover existing contracts, enrolled LAN endpoints and RS256/proof verification. Its console logs now show room updates and heartbeats, but do not establish the complete acceptance sequence. The same authentication boundary is implemented in Go with real RSA-signature tests, account authority rejection and explicit lab-token rejection; Go tests, vet and build passed. Repeat actual game acceptance on Go. See the [owner's VPS gates](nextendo-integration.md).
+The Python lab's 34 checks cover existing contracts, enrolled LAN endpoints and RS256/proof verification. Console logs and operator reports establish the local pairing results above. The same authentication boundary is implemented in Go with real RSA-signature tests, account authority rejection and explicit lab-token rejection; Go tests, vet and build passed. Repeat actual game acceptance on Go. See the [owner's VPS gates](nextendo-integration.md).

@@ -10,6 +10,7 @@ The tested emulator adaptations are explicit local experiments for title `0100FC
 - Loopback-capable UDP source binding; separate guest socket ports.
 - Buffered TLS read handling for game callback completion.
 - V17: active SSL connection tracking now decrements exactly once on disposal. Previously the monotonically increasing count could exhaust the game's context pool during normal request churn. Lifecycle checks covered repeated and parallel teardown.
+- V18: separate wildcard guest binding from the optional second-client ephemeral override. Alcalde retains the game-published host port 17778; its guest sockets can also use a wildcard source without a LAN-to-loopback Windows 10049 failure. Source-linked bind checks and actual Switch pairing in both host directions passed. See [Switch routing evidence](switch-testing.md).
 
 ## Citron
 

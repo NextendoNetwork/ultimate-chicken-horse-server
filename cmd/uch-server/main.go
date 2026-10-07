@@ -128,7 +128,7 @@ func main() {
 			reply(w, 400, backend.Object{"error": "invalid request"})
 			return
 		}
-		reply(w, 200, result)
+		reply(w, 200, clientView(result, r.RemoteAddr, c.RelayPublicIP))
 		// No headers, request bodies, identifiers or credentials are logged.
 		log.Print("UCH dispatcher batch completed")
 	})
@@ -144,8 +144,16 @@ func main() {
 			}
 			body := []byte{}
 			if r.URL.Path != "/health/ping" {
-				body = append([]byte{10}, binary.AppendUvarint(nil, uint64(len(c.RelayPublicIP)))...)
-				body = append(body, c.RelayPublicIP...)
+				ip := c.RelayPublicIP
+				if r.URL.Path == "/health/get-ip" {
+					ip = observedClientIP(r.RemoteAddr)
+					if ip == "" {
+						reply(w, 400, backend.Object{"error": "invalid peer address"})
+						return
+					}
+				}
+				body = append([]byte{10}, binary.AppendUvarint(nil, uint64(len(ip)))...)
+				body = append(body, ip...)
 			}
 			if r.URL.Path == "/relay/get-next-available" || r.URL.Path == "/relay/get-game-server" {
 				if !relay.Available() {

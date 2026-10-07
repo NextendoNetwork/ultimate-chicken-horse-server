@@ -8,9 +8,9 @@ The Nextendo owner requested these three conditions before deploying UCH using t
 
 | Gate | Evidence required | Current status |
 | --- | --- | --- |
-| Native Unity dependencies | Reproducible source and explicit applicable terms for all three DLLs, including use on the target VPS and any intended redistribution | Local archive provenance and file hashes recorded in [native dependency provenance](native-dependencies.md); applicable binary terms still unestablished |
+| Native Unity dependencies | Reproducible source and explicit applicable terms for all three DLLs, including use on the target VPS and any intended redistribution | Pinned upstream origins, official package comparison and UCL evidence recorded in [native dependency provenance](native-dependencies.md); applicability to this use remains unresolved |
 | Nextendo account authentication | Maintained Nextendo verification in Go, stable mapping, rejection/revocation tests and game acceptance | Go RS256 and account-authority proof validation are implemented and tested; maintainer review and actual game acceptance on Go remain pending |
-| Physical Switch acceptance | Discovery, join, gameplay, leave/rejoin, AFK and recovery on the intended revision | Python lab now records Switch room updates and heartbeats with status 200. Full gameplay/recovery evidence and Go acceptance remain pending |
+| Physical Switch acceptance | Discovery, join, gameplay, leave/rejoin, AFK and recovery on the intended revision | Operator confirmed local Ryujinx/Switch and Citron/Switch pairings in both host directions. Exact timing/recovery scenarios and repetition on Go staging remain pending |
 
 Do not treat the Python authentication experiment as a completed production identity bridge. BAAS public keys were fetched with the Prelude CA and TLS hostname verification; no private signing keys are required. The experiment checks signatures, configured issuer/audience, expiry, subject binding and the enrolled Nextendo proof, then asks the account service to validate the proof/account state. Its runtime key/configuration files and token metadata remain private.
 

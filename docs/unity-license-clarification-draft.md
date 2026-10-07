@@ -8,7 +8,15 @@ We maintain an independent Ultimate Chicken Horse compatibility server at https:
 
 The public repository includes our server source and MIT-licensed worker source, but none of the Unity DLLs, game binaries or game assets. Operator provision of dependencies, container packaging and downloadable worker releases are distinct scenarios for which we seek clarification. No deployment or redistribution permission is assumed.
 
-The [dependency record](native-dependencies.md) lists exact SHA-256 hashes, pinned MLAPI.Relay origins and comparisons with Unity's official 2018 packages. `UNETServerAssembly.dll` is byte-identical to the June package; the tested `UNETServerDLL.dll` and `UnityEngine.dll` differ. The April package notice refers to UCL, while the June package inspected lacks a separately named license file.
+The [dependency record](native-dependencies.md) lists exact SHA-256 hashes, pinned MLAPI.Relay origins and comparisons with Unity's official 2018 packages. `UNETServerAssembly.dll` is byte-identical to the June package. The tested native `UNETServerDLL.dll` differs only in PE timestamps and the CodeView GUID; its code-section bytes match. `UnityEngine.dll` differs in size and hash and its exact Unity build remains unconfirmed. The April package notice refers to UCL, while the June package inspected lacks a separately named license file.
+
+Exact tested files (SHA-256):
+
+| File | SHA-256 |
+| --- | --- |
+| UNETServerAssembly.dll | a8508f3f8962786dbbfd4692cc47f9338926cc6fd776f850a3e50dc376cd0ccd |
+| UnityEngine.dll | 6b4606f32a97ce061d1e34310d5be9cbb7e3f11e0778ab0e1ad23f74fcce037d |
+| UNETServerDLL.dll | b278d62c93f09a427215f8af70d59754d35e129d1382ca62e7eac97d80705565 |
 
 Please clarify:
 
@@ -20,4 +28,8 @@ Please clarify:
 
 We will retain the applicable terms and required notices and resolve eligibility before production deployment. If permission cannot be established, we will evaluate replacing the dependency and repeat compatibility testing.
 
-Contact route: use Unity's current official support/legal channel. The historical package contains an individual contact address, but its current role and authority have not been confirmed. This draft does not authorize sending a message on the user's behalf.
+Contact route: `compliance@unity3d.com`, published on [Unity's official license compliance page](https://unity.com/pages/license-compliance), verified during this investigation. Ask the team to route the request to the authority responsible for legacy UNET/UCL permissions if necessary. The historical package's individual contact has not been verified. No message has been sent on the user's behalf.
+
+## Response record
+
+Before sending, the sender should identify their name, organization/role and intended operating entity. Retain the case identifier, response date, authoritative responder, exact license version and approved use/packaging scope. Publish only the permitted non-sensitive conclusion and required notices; do not assume an unanswered request or a general support acknowledgement is permission.
