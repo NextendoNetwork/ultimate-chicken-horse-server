@@ -4,6 +4,8 @@ The project records dependency provenance and licensing decisions in this reposi
 
 ## Pending review
 
+The [owner dependency report](owner-dependency-report.md) summarizes the exact evidence, source-license boundary and DLL-free release requirements for Nextendo review. It is not a license grant or an approval to deploy the current worker.
+
 The 2026-10-07 [deployment decision](native-deployment-decision.md) concludes that the available evidence does not approve these tested binaries for the VPS. The provenance review is documented; runtime eligibility and a production transport remain unresolved. Local Go control-plane tests do not remove this gate.
 
 | Item | Status |
