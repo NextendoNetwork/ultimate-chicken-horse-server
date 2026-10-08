@@ -222,6 +222,35 @@ func TestNextendoAuthenticatedBoundary(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("stock Switch enrollment uses verified signer and replaces previous sessions", func(t *testing.T) {
+		request := Object{"service": "authenticationV2", "operation": "AUTHENTICATE", "data": Object{"authenticationType": "Nintendo", "externalId": "abcdef", "authenticationToken": valid, "deviceKind": "switch"}}
+		first := b.messageForPeer(request, "", "127.0.0.9")
+		firstID := str(obj(first["data"])["sessionId"])
+		identity, ok := b.SwitchSession(firstID)
+		if !ok || identity.Account != "123" || identity.IP.String() != "127.0.0.9" {
+			t.Fatal("verified Switch provenance missing")
+		}
+		second := b.messageForPeer(request, "", "127.0.0.9")
+		secondID := str(obj(second["data"])["sessionId"])
+		if _, _, ok := b.TransportSession(firstID); ok {
+			t.Fatal("previous account session still active")
+		}
+		if _, ok := b.SwitchSession(secondID); !ok {
+			t.Fatal("replacement Switch session not valid")
+		}
+		// The untrusted deviceKind in request data cannot override trusted kid.
+		auth.deviceKinds["test"] = "ryujinx"
+		auth.onlineCheck = func(pid uint64, kind, ip string) bool { return pid == 123 && kind == "ryujinx" && ip == "127.0.0.9" }
+		emulator := b.messageForPeer(request, "", "127.0.0.9")
+		emulatorID := str(obj(emulator["data"])["sessionId"])
+		if emulator["status"] != 200 {
+			t.Fatal("emulator login failed")
+		}
+		if _, ok := b.SwitchSession(emulatorID); ok {
+			t.Fatal("emulator opted into Switch fallback")
+		}
+		auth.deviceKinds["test"] = "switch"
+	})
 	otherProof := "nx2." + encode([]byte("456.Soul.2000")) + ".authority-checks-the-signature"
 	auth.onlineCheck = func(pid uint64, kind, ip string) bool { return pid == 456 && kind == "switch" && ip == "127.0.0.9" }
 	if pid, ok := auth.VerifyForPeer(mint(Object{"nnex": otherProof}, "RS256"), "abcdef", "127.0.0.9"); !ok || pid != "456" {

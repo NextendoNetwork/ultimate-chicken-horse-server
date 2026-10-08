@@ -28,6 +28,9 @@ type Admission struct {
 	pending              map[[32]byte]grant
 	bound                map[netip.AddrPort]grant
 	maxPending, maxBound int
+	switchValidate       func(string) (SwitchSession, bool)
+	switchWindow         time.Duration
+	switchPending        map[string]switchGrant
 }
 
 func New(validate Validator, maxPending, maxBound int) (*Admission, error) {
@@ -62,7 +65,7 @@ func (a *Admission) Issue(session string) (string, time.Time, error) {
 			delete(a.pending, key)
 		}
 	}
-	if len(a.pending) >= a.maxPending {
+	if len(a.pending)+len(a.switchPending) >= a.maxPending {
 		return "", time.Time{}, errors.New("ticket capacity reached")
 	}
 	a.pending[sha256.Sum256(raw[:])] = grant{session, account, deadline}
@@ -114,6 +117,7 @@ func (a *Admission) Bind(data []byte, endpoint netip.AddrPort) bool {
 	delete(a.pending, key)
 	issued.expires = expires
 	a.bound[endpoint] = issued
+	delete(a.switchPending, account)
 	return true
 }
 
@@ -147,6 +151,11 @@ func (a *Admission) Forget(endpoint netip.AddrPort) {
 }
 
 func (a *Admission) cleanup(now time.Time) {
+	for account, candidate := range a.switchPending {
+		if !candidate.expires.After(now) {
+			delete(a.switchPending, account)
+		}
+	}
 	for key, value := range a.pending {
 		if !value.expires.After(now) {
 			delete(a.pending, key)

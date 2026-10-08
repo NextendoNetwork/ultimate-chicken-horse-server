@@ -27,8 +27,10 @@ type Relay interface {
 	Resolve(Object) (Object, bool)
 }
 type session struct {
-	profile string
-	expires time.Time
+	profile    string
+	expires    time.Time
+	peerIP     string
+	deviceKind string
 }
 type profile struct {
 	created, last, count int64
@@ -248,12 +250,14 @@ func (b *Backend) messageForPeer(m Object, sid, peerIP string) Object {
 			return failure(403, 40315)
 		}
 		subject := str(data["externalId"])
+		deviceKind := ""
 		if b.nextendo != nil {
-			verifiedSubject, ok := b.nextendo.VerifyForPeer(str(data["authenticationToken"]), subject, peerIP)
+			verifiedSubject, kind, ok := b.nextendo.VerifySessionForPeer(str(data["authenticationToken"]), subject, peerIP)
 			if !ok {
 				return failure(403, 40307)
 			}
 			subject = verifiedSubject
+			deviceKind = kind
 		} else if b.labConsole != nil && strings.Count(str(data["authenticationToken"]), ".") == 2 {
 			verifiedSubject, ok := b.labConsole.Verify(str(data["authenticationToken"]), subject)
 			if !ok {
@@ -285,11 +289,17 @@ func (b *Backend) messageForPeer(m Object, sid, peerIP string) Object {
 		previous := p.last
 		if b.nextendo != nil {
 			p.accountPID = subject // Canonical PID returned by the verified account authority.
+			// A new verified login replaces this account's previous UCH sessions.
+			for id, previous := range b.sessions {
+				if previous.profile == pid {
+					delete(b.sessions, id)
+				}
+			}
 		}
 		p.last = now.UnixMilli()
 		p.count++
 		sid := opaque(32)
-		b.sessions[sid] = session{pid, now.Add(20 * time.Minute)}
+		b.sessions[sid] = session{profile: pid, expires: now.Add(20 * time.Minute), peerIP: peerIP, deviceKind: deviceKind}
 		response := Object{"id": pid, "profileId": pid, "sessionId": sid, "playerSessionExpiry": 1200, "server_time": now.UnixMilli(), "newUser": strconv.FormatBool(!newUser), "createdAt": p.created, "lastLogin": p.last, "previousLogin": previous, "loginCount": p.count, "xpCapped": false, "timeZoneOffset": 0, "countryCode": "", "languageCode": "en", "emailAddress": "", "pictureUrl": nil, "parentProfileId": nil, "identity": Object{"type": "Nintendo", "id": subject, "identityData": Object{}}, "rewards": Object{"rewardDetails": Object{}, "rewards": Object{}, "currency": Object{}}, "playerName": "", "statistics": Object{}, "currency": Object{}, "incoming_events": []any{}, "sent_events": []any{}}
 		for _, key := range []string{"vcPurchased", "vcClaimed", "refundCount", "amountSpent", "experiencePoints", "experienceLevel", "abTestingId"} {
 			response[key] = 0

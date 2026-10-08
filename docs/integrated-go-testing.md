@@ -17,7 +17,7 @@ uch-server -config private/config.json -addr 0.0.0.0:443 \
 
 The UDP listener port must match `relayPort`. Forward TCP 443 and UDP 19889 through the test router only after provisioning the private configuration. Run under a dedicated user and supervisor with operator-selected memory/CPU limits. This invocation has no timed staging shutdown. SIGTERM/SIGINT initiate HTTP shutdown and transport cancellation. The adapter bounds peers to 16, pending tickets to 128, reliable queues and message sizes; the backend bounds sessions/profiles to 4096 each and rooms to 64. A periodic task removes expired sessions/rooms and profiles inactive for 24 hours. These are application bounds, not a substitute for an OS memory limit.
 
-## Client bootstrap requirement
+## Ticket bootstrap for emulators
 
 1. Complete the existing Nextendo login and `/internal/online-check` gate through the UCH API.
 2. Request `POST /transport/ticket` over TLS using `Authorization: Bearer <UCH sessionId>`. Responses are marked `no-store`. Do not log tokens.
@@ -26,7 +26,7 @@ The UDP listener port must match `relayPort`. Forward TCP 443 and UDP 19889 thro
 
 The dispatcher also attaches an optional top-level `nextendoTransport` descriptor after a verified session is established. Its fields are `protocol`, `ticket`, `expiresMs`, `relayIP` and `relayPort`. Dispatcher responses are length-framed and marked `no-store`. This permits a title-specific bridge to observe the descriptor without changing the game's request schema.
 
-The stock UCH UNET connect frame has no ticket field. Ryujinx, Citron and Prelude need a bridge that observes the authenticated session and transmits the bootstrap from the gameplay socket. Merely changing hosts or fetching a ticket from another socket does not implement this bridge. Local emulator prototypes implement this opt-in step for the exact UCH title. The isolated-account emulator gameplay results are recorded below; these prototypes are not published client releases or physical Switch acceptance. The bridge must handle bootstrap packet loss/order and rebootstrap after expiry; the current UDP bootstrap has no acknowledgement. Bearer bootstrap does not add cryptographic integrity to subsequent UNET packets.
+The stock UCH UNET connect frame has no ticket field. Ryujinx and Citron use a bridge that observes the authenticated session and transmits the bootstrap from the gameplay socket. An unmodified Switch can instead use the explicit server-side [Switch IP compatibility mode](stock-switch-compatibility.md); that mode has a weaker shared-NAT attribution model. Merely changing hosts or fetching a ticket from another socket does not implement this bridge. Local emulator prototypes implement this opt-in step for the exact UCH title. The isolated-account emulator gameplay results are recorded below; these prototypes are not published client releases or physical Switch acceptance. The bridge must handle bootstrap packet loss/order and rebootstrap after expiry; the current UDP bootstrap has no acknowledgement. Bearer bootstrap does not add cryptographic integrity to subsequent UNET packets.
 
 ## Evidence
 
@@ -48,11 +48,11 @@ This command passed on the test VPS with both fictitious accounts and the real i
 
 The extended probe also passed synthetic host registration, guest room entry, guest-to-host payload forwarding and a targeted host reply. Both peers first validated their isolated account proofs through the account service and online-check. This proves the combined synthetic room path, not gameplay by a Switch or emulator.
 
-### Switch bridge investigation
+### Earlier Switch bridge investigation
 
 Prelude's build workflow fetches `W-874/network_mitm` tag `v2.0.0-account-link-fallback`. Inspection of source commit `cf4fbd9e8065615c6496e1776866647d884a3969` found that release deliberately registers only `ssl:s` for NIM, Account and NPNS; it does not intercept ordinary game SSL or BSD UDP sockets. It cannot supply the UCH gameplay bootstrap as shipped. The source and durable constraints record a console abort after an earlier ordinary-SSL scope expansion. No module was installed or widened during this investigation.
 
-A UCH-specific bridge needs its own reviewed path for the exact title and gameplay socket, bounded IPC/session handling and a reversible hardware test package. The existing account-link fallback alone is not evidence that the bridge is implemented. The Switch bridge remains development work before the Switch rows below can run.
+A UCH-specific bridge needs its own reviewed path for the exact title and gameplay socket, bounded IPC/session handling and a reversible hardware test package. The existing account-link fallback alone is not evidence that the bridge is implemented. The newer server-side Switch IP compatibility mode avoids this bridge requirement. Physical acceptance still needs authorized console authentication and a current-code campaign; the stock Switch rows have not passed on this new candidate.
 
 ### Persistent service and emulator prototype checks
 
@@ -70,7 +70,7 @@ The Linux/amd64 diagnostic candidate used for that public-network check has SHA-
 
 Presence includes authenticated UDP hosts and guests. It drops revoked/expired accounts and expires the immutable cache after two seconds if transport updates stall. The HTTP handler never takes the backend login lock: the account authority can fetch presence while verifying a login without creating a circular lock dependency. UDP peer timeout and shutdown remove stale presence.
 
-The isolated account-source fork adds optional `DASH_UCH_URL` to its presence sources. The operator privately sets it to the loopback listener and supplies the matching `DASH_TOKEN`. This account-service change has not been applied to Nextendo production; its maintainer must review and configure the equivalent integration before rollout.
+The isolated account-source fork adds optional `DASH_UCH_URL` to its presence sources. The operator privately sets it to the loopback listener and supplies the matching `DASH_TOKEN`. This account-service change has not been applied to Nextendo production; its maintainer must review and configure the equivalent integration before rollout. The scoped diff and tests are provided in [the account-service handoff](../integration/README.md).
 
 The running-service check passed a login and UDP connection using a fictitious account in the Switch category, rejected that same account's simultaneous login in the emulator category, and accepted it after UDP peer cleanup. The second independent account also logged in and connected. These were synthetic clients and signed BAAS fixtures against the real isolated account process; they do not represent physical consoles or production credentials.
 
@@ -80,6 +80,14 @@ dispatcher tickets, authenticated UDP, cross-platform exclusion and release afte
 peer cleanup. This repeat did not add emulator or hardware gameplay acceptance.
 
 ## Live campaign record
+
+### Stock Switch compatibility candidate
+
+The October 8 Linux/amd64 candidate has SHA-256 `613cd67b9bd6720938847b6aeedbe03dd094ce1ccd70a43154c2d34aa2c575d2`. With `switchIPCompatibility` explicitly enabled in the isolated laboratory, a public-network synthetic check passed verified TLS login using a signed Switch-category fixture and a stock UNET connect without NXU1. An emulator-category fixture was rejected without its ticket and accepted with NXU1 from the same UDP socket. Cross-platform account exclusion and release after peer timeout also passed against the isolated account process. These are synthetic clients, not physical consoles or a repeat gameplay campaign on this candidate. Full Go tests, `go vet`, targeted admission/UDP/HTTP race tests and the backend authentication boundary race test passed.
+
+Physical consoles still require an authorized account-gate arrangement that accepts their actual Prelude credentials. The isolated fixture authority is not that arrangement. No production account code was changed; the scoped review patch is in `integration/nextendo-account-uch.patch`.
+
+### Earlier integrated emulator campaigns
 
 On October 8, both Ryujinx clients passed the isolated account gate over public HTTPS after correcting the signed test fixture's identity from decimal to UCH's unpadded hexadecimal representation. Strict subject matching remains enforced; alternate representations are diagnosed but rejected.
 

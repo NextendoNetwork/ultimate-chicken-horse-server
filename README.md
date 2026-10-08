@@ -4,7 +4,7 @@ Go implementation of the observed UCH authentication, lobby and relay-allocation
 
 Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328`). This game uses brainCloud-compatible RPC scripts and MLAPI/UNET gameplay transport; it is separate from the NPLN Classics servers.
 
-## Go migration status (2026-10-07)
+## Go migration status (2026-10-08)
 
 | Component | Current implementation |
 | --- | --- |
@@ -15,9 +15,9 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 
 The [multi-peer Go adapter](docs/go-transport-adapter.md) handles large and grouped records, ordered delivery, channel-byte and full reliable-ID sequence wrap, retransmission and disconnect cleanup. Two private native reference clients joined one Go-only room and exchanged a large message and targeted reply. This is synthetic interoperability, not real-game acceptance or approval for the VPS.
 
-**Production release remains held.** The Go API can read room-state snapshots from `cmd/unet-staging` for a DLL-free staging path. The new adapter still lacks production transport/account binding and completed release acceptance. The earlier original-worker path depends on three private Unity-related DLLs whose runtime terms remain unresolved. See [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
+**Production release remains held pending acceptance.** The integrated service has account-bound Go UDP transport, persistent operation and resource bounds, with no Unity DLL or .NET runtime dependency. The earlier original-worker path and its unresolved DLL terms are historical; see [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
 
-An [integrated Go testing path](docs/integrated-go-testing.md) now connects verified HTTP sessions to one-use UDP tickets and runs the adapter in the same persistent process. Automated account/UDP integration passes with a simulated authority. Client bootstrap integration in Ryujinx, Citron and Prelude, live account-gate acceptance and public-router gameplay remain pending; this does not approve a production deployment.
+The [integrated Go testing path](docs/integrated-go-testing.md) connects verified HTTP sessions to one-use UDP tickets. Public-network Ryujinx/Ryujinx, Ryujinx/Citron and Citron/Citron campaigns passed both host directions, gameplay, rejoin and five minutes AFK using isolated signed accounts. An opt-in [stock Switch compatibility path](docs/stock-switch-compatibility.md) correlates a verified Switch HTTPS session with UDP source IP for 30 seconds and rejects ambiguous pending accounts. It requires no game UDP client change, but has weaker attribution on shared NAT. Automated and synthetic public-network checks pass; physical acceptance on this candidate and authorized real-account integration remain pending. The [account-service diff](integration/README.md) is supplied for maintainer review, without production changes.
 
 ### Game tests with the new Go transport
 
@@ -46,7 +46,7 @@ go vet ./...
 go build -buildvcs=false -o bin/uch-server ./cmd/uch-server
 ```
 
-This binary has no linked Unity DLLs and no third-party Go modules. It implements the HTTP control plane; gameplay still needs the transport described above. A successful build is not a complete-server deployment approval.
+This binary has no linked Unity DLLs and no third-party Go modules. With `-go-transport`, it implements the HTTP control plane and integrated Go gameplay transport. A successful build is not a complete-server deployment approval.
 
 For production account mode, copy `config.nextendo.example.json` to ignored `private/config.json`. Provision TLS, trusted BAAS public keys, the private account-service internal key, and the reviewed device-kind mapping. `allowAllAccounts: true` delegates eligibility to Nextendo; omit `allowedSubjects` and disable lab mode. See [account authentication](docs/nextendo-authentication.md).
 

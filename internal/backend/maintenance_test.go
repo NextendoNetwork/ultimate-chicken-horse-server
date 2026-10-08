@@ -11,7 +11,7 @@ func TestMaintenanceExpiresIdleStateWithoutRequests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b.sessions["expired"] = session{"old", time.Now().Add(-time.Second)}
+	b.sessions["expired"] = session{profile: "old", expires: time.Now().Add(-time.Second)}
 	b.rooms["old"] = &room{expires: time.Now().Add(-time.Second)}
 	b.profiles["old"] = &profile{last: time.Now().Add(-25 * time.Hour).UnixMilli()}
 	ctx, cancel := context.WithCancel(context.Background())

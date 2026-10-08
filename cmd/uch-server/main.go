@@ -24,23 +24,24 @@ import (
 )
 
 type config struct {
-	EnableLabAuth      bool                    `json:"enableLabAuth"`
-	NextendoAuth       *backend.NextendoConfig `json:"nextendoAuth"`
-	LabConsoleAuth     *backend.NextendoConfig `json:"labConsoleAuth"`
-	LabSigningKeyHex   string                  `json:"labSigningKeyHex"`
-	AllowedSubjects    []string                `json:"allowedSubjects"`
-	CertificatePem     string                  `json:"certificatePem"`
-	PrivateKeyPem      string                  `json:"privateKeyPem"`
-	RelayStatePath     string                  `json:"relayStatePath"`
-	RelayPublicIP      string                  `json:"relayPublicIP"`
-	RelayPort          int                     `json:"relayPort"`
-	AllowedEndpointIPs []string                `json:"allowedEndpointIPs"`
+	EnableLabAuth         bool                    `json:"enableLabAuth"`
+	NextendoAuth          *backend.NextendoConfig `json:"nextendoAuth"`
+	LabConsoleAuth        *backend.NextendoConfig `json:"labConsoleAuth"`
+	LabSigningKeyHex      string                  `json:"labSigningKeyHex"`
+	AllowedSubjects       []string                `json:"allowedSubjects"`
+	CertificatePem        string                  `json:"certificatePem"`
+	PrivateKeyPem         string                  `json:"privateKeyPem"`
+	RelayStatePath        string                  `json:"relayStatePath"`
+	RelayPublicIP         string                  `json:"relayPublicIP"`
+	RelayPort             int                     `json:"relayPort"`
+	AllowedEndpointIPs    []string                `json:"allowedEndpointIPs"`
+	SwitchIPCompatibility bool                    `json:"switchIPCompatibility"`
 }
 
 func main() {
 	path := flag.String("config", "", "private operator configuration JSON")
 	address := flag.String("addr", "127.0.0.2:8443", "TLS listen address")
-	goTransport := flag.Bool("go-transport", false, "integrated account-bound Go UDP transport; requires client bootstrap integration")
+	goTransport := flag.Bool("go-transport", false, "integrated account-bound Go UDP transport")
 	udpAddress := flag.String("udp-addr", "127.0.0.1:19889", "Go transport UDP listener; port must match configured relayPort")
 	statsAddress := flag.String("stats-addr", "", "optional loopback-only HTTP account presence listener")
 	statsKeyEnv := flag.String("stats-key-env", "UCH_STATS_KEY", "environment variable containing the private presence key")
@@ -85,6 +86,9 @@ func main() {
 	}
 	var relay backend.Relay = &backend.FileRelay{Path: c.RelayStatePath, PublicIP: c.RelayPublicIP, Port: c.RelayPort, AllowedIPs: allowed}
 	var live *backend.LiveRelay
+	if c.SwitchIPCompatibility && !*goTransport {
+		log.Fatal("Switch IP compatibility requires integrated Go transport")
+	}
 	if *goTransport {
 		if c.NextendoAuth == nil || c.EnableLabAuth || len(c.AllowedEndpointIPs) != 0 || c.RelayStatePath != "" {
 			log.Fatal("integrated transport requires Nextendo mode without static peer enrollment or snapshot files")
@@ -135,6 +139,12 @@ func main() {
 		admission, e = transportauth.New(b.TransportSession, 128, 16)
 		if e != nil {
 			log.Fatal("cannot initialize account admission")
+		}
+		if c.SwitchIPCompatibility {
+			if err := admission.EnableSwitchIP(b.SwitchSession, 30*time.Second); err != nil {
+				log.Fatal("cannot initialize Switch compatibility")
+			}
+			log.Print("Switch IP compatibility enabled: recent verified HTTPS session required; shared-NAT attribution is weaker than tickets")
 		}
 		udp, err := net.ResolveUDPAddr("udp4", *udpAddress)
 		if err != nil || udp.Port != c.RelayPort {
@@ -248,6 +258,7 @@ func main() {
 			return
 		}
 		sessionID, _ := packet["sessionId"].(string)
+		observeSwitchResponse(r, result, sessionID, admission)
 		attachTransportTicket(result, sessionID, admission, c.RelayPublicIP, c.RelayPort)
 		w.Header().Set("Cache-Control", "no-store")
 		reply(w, 200, clientView(result, r.RemoteAddr, c.RelayPublicIP))

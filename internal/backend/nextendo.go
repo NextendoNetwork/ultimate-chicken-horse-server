@@ -316,6 +316,27 @@ func (a *NextendoAuth) VerifyForPeer(token, external, peerIP string) (string, bo
 	return identity[0], true
 }
 
+// VerifySessionForPeer adds the device category from the already verified
+// signing key, never a client-supplied platform label.
+func (a *NextendoAuth) VerifySessionForPeer(token, external, peerIP string) (string, string, bool) {
+	account, ok := a.VerifyForPeer(token, external, peerIP)
+	if !ok {
+		return "", "", false
+	}
+	parts := strings.Split(strings.TrimRight(token, "\x00"), ".")
+	raw, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return "", "", false
+	}
+	var header struct {
+		Kid string `json:"kid"`
+	}
+	if json.Unmarshal(raw, &header) != nil {
+		return "", "", false
+	}
+	return account, a.deviceKinds[header.Kid], true
+}
+
 // NewAuthenticated requires the maintained account gate and disables lab tokens.
 func NewAuthenticated(relay Relay, auth *NextendoAuth) (*Backend, error) {
 	if auth == nil || auth.onlineCheck == nil || relay == nil {

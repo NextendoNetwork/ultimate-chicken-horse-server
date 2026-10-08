@@ -269,6 +269,13 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 			}
 			continue
 		}
+		request, connectErr := wire.ParseConnectRequest(b)
+		validConnect := connectErr == nil && request.Version == wire.ObservedUCHVersion && request.ConfigurationChecksum == wire.ObservedUCHChecksum && request.Header.SourceConnection != 0 && request.Header.DestinationConnection == 0
+		if o.Admission != nil && !o.Admission.Authorized(from) && validConnect && len(peers) < o.MaxPeers && nextID != 0 {
+			if o.Admission.BindSwitch(from) {
+				trace("switch-ip-bootstrap", nil, n, "compatibility admission accepted")
+			}
+		}
 		if (o.Admission != nil && !o.Admission.Authorized(from)) ||
 			(o.Admission == nil && !o.AllowedIPs[from.Addr()]) {
 			trace("admission-reject", nil, n, "unauthorized endpoint")
@@ -276,8 +283,8 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 			continue
 		}
 		p := addresses[from]
-		if request, e := wire.ParseConnectRequest(b); e == nil {
-			if request.Version != wire.ObservedUCHVersion || request.ConfigurationChecksum != wire.ObservedUCHChecksum || request.Header.SourceConnection == 0 || request.Header.DestinationConnection != 0 {
+		if connectErr == nil {
+			if !validConnect {
 				trace("connect-reject", p, n, fmt.Sprintf("version=%d checksum=%d source=%d destination=%d", request.Version, request.ConfigurationChecksum, request.Header.SourceConnection, request.Header.DestinationConnection))
 				stats.RejectedFrames++
 				continue

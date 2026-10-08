@@ -2,7 +2,9 @@ package backend
 
 import (
 	"context"
+	"net/netip"
 	"time"
+	"uch-server/internal/transportauth"
 )
 
 // Maintain reaps expired sessions and rooms even when no HTTP requests arrive.
@@ -19,6 +21,27 @@ func (b *Backend) Maintain(ctx context.Context) {
 			b.mu.Unlock()
 		}
 	}
+}
+
+// SwitchSession exposes only a session created through the mandatory Nextendo
+// verifier and online-check. The IP and category came from verified login,
+// rather than dispatcher data or forwarded headers.
+func (b *Backend) SwitchSession(id string) (transportauth.SwitchSession, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.nextendo == nil || b.nextendo.onlineCheck == nil {
+		return transportauth.SwitchSession{}, false
+	}
+	s, exists := b.sessions[id]
+	if !exists || !s.expires.After(b.now()) || s.deviceKind != "switch" {
+		return transportauth.SwitchSession{}, false
+	}
+	p := b.profiles[s.profile]
+	ip, err := netip.ParseAddr(s.peerIP)
+	if p == nil || p.accountPID == "" || err != nil || !ip.Unmap().Is4() || ip.IsUnspecified() {
+		return transportauth.SwitchSession{}, false
+	}
+	return transportauth.SwitchSession{Account: p.accountPID, Expires: s.expires, IP: ip.Unmap()}, true
 }
 
 // TransportSession validates a local UCH session issued after production

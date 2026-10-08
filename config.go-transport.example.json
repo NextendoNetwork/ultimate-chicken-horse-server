@@ -1,5 +1,6 @@
 {
   "enableLabAuth": false,
+  "switchIPCompatibility": false,
   "nextendoAuth": {
     "jwksPath": "private/nextendo-baas-jwks.json",
     "issuer": "https://e0d67c509fb203858ebcb2fe3f88c2aa.baas.nintendo.com",
