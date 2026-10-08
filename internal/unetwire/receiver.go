@@ -9,7 +9,7 @@ import (
 // Receiver implements bounded per-channel ordering for the measured UCH profile.
 // Call only after validating the established connection, endpoint and tag.
 // Buffered groups are limited to 64 sequence steps, below the 8-bit half range.
-// The full reliable-ID epoch wrap remains unsupported and must close the peer.
+// Reliable IDs and channel sequence bytes use their measured modular windows.
 type heldGroup struct {
 	group MessageGroup
 	id    uint16
@@ -36,7 +36,7 @@ func (r *Receiver) Accept(record DataRecord) ([]Message, bool, error) {
 			next.buffered[ch][seq] = g
 		}
 	}
-	if record.ReliableID != 0 {
+	if record.Groups[0].Channel != 1 {
 		dup, e := next.ACK.Observe(record.ReliableID)
 		if e != nil {
 			return nil, false, e
@@ -61,14 +61,11 @@ func (r *Receiver) Accept(record DataRecord) ([]Message, bool, error) {
 			}
 		}
 		if g.Channel == 1 || g.Channel == 2 {
-			if (g.Channel == 1) != (record.ReliableID == 0) || len(record.Groups) != 1 || g.ChannelSequence != 0 || g.Combined || len(g.Payloads) != 1 {
+			if (g.Channel == 1 && record.ReliableID != 0) || len(record.Groups) != 1 || g.ChannelSequence != 0 || g.Combined || len(g.Payloads) != 1 {
 				return nil, false, errors.New("invalid nonsequenced record")
 			}
 			emit(g, record.ReliableID)
 			continue
-		}
-		if record.ReliableID == 0 {
-			return nil, false, errors.New("sequenced record without reliable ID")
 		}
 		distance := uint8(g.ChannelSequence - next.expected[g.Channel])
 		if distance >= 128 {

@@ -5,11 +5,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	wire "uch-server/internal/unetwire"
 	"net"
 	"net/netip"
 	"testing"
 	"time"
+	wire "uch-server/internal/unetwire"
 )
 
 type synthetic struct {
@@ -20,6 +20,26 @@ type synthetic struct {
 	receiver            wire.Receiver
 	counter, outgoing   uint16
 	sequence            [4]byte
+}
+
+func TestLostACKSpanAcrossEpoch(t *testing.T) {
+	p := &peer{outgoing: 65535, pending: map[uint16]pending{65528: {}}}
+	if !reliableSlotAvailable(p) {
+		t.Fatal("zero ID blocked before span exhaustion")
+	}
+	p.outgoing = 15
+	if reliableSlotAvailable(p) {
+		t.Fatal("unacked pre-epoch ID would leave bitmap")
+	}
+	delete(p.pending, 65528)
+	p.pending[0] = pending{}
+	if !reliableSlotAvailable(p) {
+		t.Fatal("zero pending ID cannot progress")
+	}
+	p.outgoing = 23
+	if reliableSlotAvailable(p) {
+		t.Fatal("zero pending ID left protected span")
+	}
 }
 
 func start(t *testing.T) (netip.AddrPort, context.CancelFunc, <-chan Stats) {

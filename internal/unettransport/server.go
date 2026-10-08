@@ -9,11 +9,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	relay "uch-server/internal/relayrouter"
-	wire "uch-server/internal/unetwire"
 	"net"
 	"net/netip"
 	"time"
+	relay "uch-server/internal/relayrouter"
+	wire "uch-server/internal/unetwire"
 )
 
 type Event struct {
@@ -50,8 +50,21 @@ type peer struct {
 	clock                 uint32
 }
 
+// A lost ACK must remain inside the receiver's 32-ID bitmap across ID zero.
+func reliableSlotAvailable(p *peer) bool {
+	if len(p.pending) >= 24 {
+		return false
+	}
+	for id := range p.pending {
+		if uint16(p.outgoing+1-id) >= 24 {
+			return false
+		}
+	}
+	return true
+}
+
 // Serve owns one event loop and bounded state. It never closes the caller's socket.
-// Peers must reconnect before the unmeasured 16-bit reliable-ID epoch wraps.
+// Reliable-ID wrap uses the measured modular ACK window.
 func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 	var stats Stats
 	traceRemaining := 256
@@ -82,10 +95,10 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 	lastSnapshot := time.Time{}
 	send := func(p *peer, m *wire.Message) bool {
 		a := p.receiver.ACK
-		if a.Upper == 0 {
+		if !a.Initialized() {
 			a.Upper = 32
 		}
-		b, e := (wire.DataPacket{Destination: p.remote.SourceConnection, Counter: p.counter, Tag: p.tag, AckUpper: a.Upper, Acknowledged: a.Bits, Message: m}).MarshalBinary()
+		b, e := (wire.DataPacket{Destination: p.remote.SourceConnection, Counter: p.counter, Tag: p.tag, AckUpper: a.Upper, AckInitialized: true, Acknowledged: a.Bits, Message: m}).MarshalBinary()
 		if e != nil {
 			return false
 		}
@@ -142,21 +155,8 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 		for len(p.queue) > 0 {
 			a := p.queue[0]
 			if a.Channel != 1 {
-				if len(p.pending) >= 24 {
+				if !reliableSlotAvailable(p) {
 					break
-				}
-				min := p.outgoing + 1
-				for id := range p.pending {
-					if id < min {
-						min = id
-					}
-				}
-				if p.outgoing+1-min >= 24 {
-					break
-				}
-				if p.outgoing >= 65520 {
-					drop(p, true)
-					return
 				}
 			}
 			m := wire.Message{Channel: a.Channel, Payload: a.Payload}
@@ -174,7 +174,7 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 				return
 			}
 			p.queue = p.queue[1:]
-			if m.ReliableID != 0 {
+			if m.Channel != 1 {
 				p.pending[m.ReliableID] = pending{m, time.Now(), 0}
 			}
 			stats.SentMessages++

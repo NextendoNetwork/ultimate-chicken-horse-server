@@ -28,6 +28,6 @@ A temporary firewall allowance must name the Go adapter, the selected UDP port a
 
 ## Gates that remain
 
-The adapter uses static endpoint enrollment for staging. That is not a production transport/account binding or a substitute for Nextendo's account and online-check gates. It implements the measured non-fragmenting UCH packet profile; full 16-bit reliable-ID epoch wrap remains unsupported and peers close before exhaustion. Production lifecycle, impairment/abuse behavior and the renewed platform campaign remain pending.
+The adapter uses static endpoint enrollment for staging. That is not a production transport/account binding or a substitute for Nextendo's account and online-check gates. It implements the measured non-fragmenting UCH packet profile; full 16-bit reliable-ID epoch wrap is now implemented from [synthetic reference evidence](go-reliable-epoch.md). Production lifecycle, impairment/abuse behavior and final physical Switch/Switch acceptance remain pending.
 
 The original worker may be kept separately for private reference/rollback, but it must not receive gameplay traffic in a run claimed to be Go-only. Use separate UDP ports/state files and verify which adapter the HTTP allocation selects. Do not package Unity DLLs into the Go release. This staging document does not change the owner's no-VPS decision.

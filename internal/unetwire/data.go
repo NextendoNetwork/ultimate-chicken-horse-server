@@ -28,13 +28,14 @@ type DataRecord struct {
 	Groups     []MessageGroup
 }
 type DataPacket struct {
-	Destination  uint16
-	Counter      uint16
-	Tag          [2]byte
-	AckUpper     uint16
-	Acknowledged uint32
-	Records      []DataRecord
-	Message      *Message
+	Destination    uint16
+	Counter        uint16
+	Tag            [2]byte
+	AckUpper       uint16
+	AckInitialized bool
+	Acknowledged   uint32
+	Records        []DataRecord
+	Message        *Message
 }
 
 // Lengths above 127 use two big-endian bytes with the top bit set.
@@ -79,7 +80,7 @@ func ParseObservedData(p []byte) (DataPacket, error) {
 	if len(p) < 12 || len(p) > UCHPacketSize || binary.BigEndian.Uint16(p[:2]) == 0 || !validAckUpper(binary.BigEndian.Uint16(p[6:8])) {
 		return DataPacket{}, errors.New("unsupported framing or ACK epoch")
 	}
-	r := DataPacket{Destination: binary.BigEndian.Uint16(p[:2]), Counter: binary.BigEndian.Uint16(p[2:4]), Tag: [2]byte{p[4], p[5]}, AckUpper: binary.BigEndian.Uint16(p[6:8]), Acknowledged: binary.BigEndian.Uint32(p[8:12])}
+	r := DataPacket{Destination: binary.BigEndian.Uint16(p[:2]), Counter: binary.BigEndian.Uint16(p[2:4]), Tag: [2]byte{p[4], p[5]}, AckUpper: binary.BigEndian.Uint16(p[6:8]), AckInitialized: true, Acknowledged: binary.BigEndian.Uint32(p[8:12])}
 	at := 12
 	for at < len(p) {
 		marker := p[at]
@@ -140,9 +141,6 @@ func ParseObservedData(p []byte) (DataPacket, error) {
 		default:
 			return DataPacket{}, errors.New("unsupported record marker")
 		}
-		if marker != 1 && record.ReliableID == 0 {
-			return DataPacket{}, errors.New("reliable epoch wrap not implemented")
-		}
 		r.Records = append(r.Records, record)
 	}
 	if len(r.Records) == 1 && len(r.Records[0].Groups) == 1 && len(r.Records[0].Groups[0].Payloads) == 1 {
@@ -161,7 +159,7 @@ func (r DataPacket) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint16(out[2:4], r.Counter)
 	copy(out[4:6], r.Tag[:])
 	upper := r.AckUpper
-	if upper == 0 {
+	if upper == 0 && !r.AckInitialized {
 		upper = 32
 	}
 	if !validAckUpper(upper) {
@@ -193,9 +191,6 @@ func (r DataPacket) MarshalBinary() ([]byte, error) {
 					return nil, errors.New("unreliable record has ID")
 				}
 			} else {
-				if record.ReliableID == 0 {
-					return nil, errors.New("reliable epoch wrap not implemented")
-				}
 				body = binary.BigEndian.AppendUint16(body, record.ReliableID)
 			}
 			if len(first.Payloads[0]) == 0 {
@@ -203,9 +198,6 @@ func (r DataPacket) MarshalBinary() ([]byte, error) {
 			}
 			body = append(body, first.Payloads[0]...)
 		case 0, 3:
-			if record.ReliableID == 0 {
-				return nil, errors.New("reliable epoch wrap not implemented")
-			}
 			marker = 255
 			body = binary.BigEndian.AppendUint16(body, record.ReliableID)
 			for _, g := range record.Groups {

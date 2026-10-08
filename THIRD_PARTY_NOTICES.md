@@ -2,6 +2,7 @@
 
 ## MLAPI.Relay reference and UNET worker
 
+- The reliable-ID epoch implementation and tests are imported from personal revision `832d0bc1cf53d0fbefd5c84fb86ee6e10a938a3e`, under the same retained MIT grants. The diagnostic adapter/staging update came from `30889cf14e400c625becb40bb2b6b2f15c1d5fb1`. No reference binary or recovered implementation is imported.
 - The measured multi-peer Go transport, updated codecs/tests and staging command are imported from personal revision `c55f0dfcddf72ee056eef6a5b8c6c2cf742e0a6d`. `internal/unettransport/` and `cmd/unet-staging/` retain adjacent MIT texts. Only module import paths are adapted. This code does not load or distribute Unity DLLs; production acceptance remains pending.
 
 - Source: https://github.com/MidLevel/MLAPI.Relay

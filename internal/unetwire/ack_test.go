@@ -33,8 +33,8 @@ func TestMeasuredACKWindowAdvance(t *testing.T) {
 	if e != nil || !duplicate || w.Acknowledges(1) {
 		t.Fatal("old packet became fresh")
 	}
-	if _, e := w.Observe(0); e == nil {
-		t.Fatal("ID wrap accepted")
+	if duplicate, e := w.Observe(0); e != nil || !duplicate {
+		t.Fatal("old zero ID became fresh before epoch wrap")
 	}
 }
 func TestACKLossReorderAndJump(t *testing.T) {

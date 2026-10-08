@@ -87,7 +87,7 @@ func TestDataRejectsUnsupportedLayouts(t *testing.T) {
 			t.Fatalf("truncation accepted: %d", n)
 		}
 	}
-	mutations := []func([]byte){func(p []byte) { p[7] = 33 }, func(p []byte) { p[15] = 0 }, func(p []byte) { p[16] = 2 }, func(p []byte) { p[17]++ }}
+	mutations := []func([]byte){func(p []byte) { p[7] = 33 }, func(p []byte) { p[16] = 2 }, func(p []byte) { p[17]++ }}
 	for _, mutate := range mutations {
 		q := append([]byte(nil), p...)
 		mutate(q)

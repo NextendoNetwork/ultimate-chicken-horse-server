@@ -13,9 +13,9 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 | UCH application relay routing | Connected to the experimental Go adapter under `internal/unettransport`; synthetic host/guest routing passes |
 | UNET UDP handshake, reliable delivery and keepalive | Experimental Go adapter handles the measured UCH profile; console/emulator gameplay passes in both host directions; production gates remain pending |
 
-The [multi-peer Go adapter](docs/go-transport-adapter.md) handles large and grouped records, ordered delivery, channel-byte sequence wrap, retransmission and disconnect cleanup. Two private native reference clients joined one Go-only room and exchanged a large message and targeted reply. This is synthetic interoperability, not real-game acceptance or approval for the VPS.
+The [multi-peer Go adapter](docs/go-transport-adapter.md) handles large and grouped records, ordered delivery, channel-byte and full reliable-ID sequence wrap, retransmission and disconnect cleanup. Two private native reference clients joined one Go-only room and exchanged a large message and targeted reply. This is synthetic interoperability, not real-game acceptance or approval for the VPS.
 
-**Production release remains held.** The Go API can read room-state snapshots from `cmd/unet-staging` for a DLL-free staging path. The new adapter still lacks full reliable-ID epoch wrap, production transport/account binding and completed release acceptance. The earlier original-worker path depends on three private Unity-related DLLs whose runtime terms remain unresolved. See [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
+**Production release remains held.** The Go API can read room-state snapshots from `cmd/unet-staging` for a DLL-free staging path. The new adapter still lacks production transport/account binding and completed release acceptance. The earlier original-worker path depends on three private Unity-related DLLs whose runtime terms remain unresolved. See [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
 
 ### Game tests with the new Go transport
 

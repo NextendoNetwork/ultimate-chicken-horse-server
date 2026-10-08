@@ -5,41 +5,43 @@ import "errors"
 
 // AckWindow preserves a 32-bit bitmap covering IDs Upper-31 through Upper.
 // Reference measurements advanced Upper by eight on ID 33, then ID 41.
-// This implementation deliberately rejects the unmeasured 16-bit epoch wrap.
+// A bounded synthetic reference exchange measured the 16-bit return to zero.
 type AckWindow struct {
-	Upper uint16
-	Bits  uint32
+	Upper       uint16
+	Bits        uint32
+	initialized bool
 }
 
-func validAckUpper(upper uint16) bool { return upper >= 32 && upper <= 65528 && upper%8 == 0 }
+func validAckUpper(upper uint16) bool { return upper%8 == 0 }
+
+func (w AckWindow) Initialized() bool { return w.initialized || w.Upper != 0 || w.Bits != 0 }
 
 func (w AckWindow) Acknowledges(id uint16) bool {
-	if id == 0 || !validAckUpper(w.Upper) {
+	if !validAckUpper(w.Upper) {
 		return false
 	}
-	value := uint16(id)
-	if value > w.Upper || w.Upper-value >= 32 {
+	distance := uint16(w.Upper - id)
+	if distance >= 32 {
 		return false
 	}
-	return w.Bits&(uint32(1)<<(w.Upper-value)) != 0
+	return w.Bits&(uint32(1)<<distance) != 0
 }
 
 // Observe must be called only after validating the peer, profile and payload.
 // Old IDs outside the bitmap are treated as duplicates, never newly delivered.
-// Ordering, replay epochs and reliable-ID wrap are transport responsibilities.
+// Serial comparisons require fewer than 32768 outstanding IDs; the adapter
+// keeps a 24-ID span. Connection tags and ordering remain transport checks.
 func (w *AckWindow) Observe(id uint16) (duplicate bool, err error) {
-	if id == 0 || id > 65528 {
-		return false, errors.New("reliable ID wrap is not implemented")
-	}
-	if w.Upper == 0 {
+	if !w.Initialized() {
 		w.Upper = 32
 	}
+	w.initialized = true
 	if !validAckUpper(w.Upper) {
 		return false, errors.New("invalid ACK window")
 	}
-	value := uint16(id)
-	if value > w.Upper {
-		next := (value + 7) / 8 * 8
+	ahead := uint16(id - w.Upper)
+	if ahead != 0 && ahead < 32768 {
+		next := uint16((uint32(id) + 7) / 8 * 8)
 		shift := next - w.Upper
 		if shift >= 32 {
 			w.Bits = 0
@@ -48,7 +50,7 @@ func (w *AckWindow) Observe(id uint16) (duplicate bool, err error) {
 		}
 		w.Upper = next
 	}
-	distance := w.Upper - value
+	distance := uint16(w.Upper - id)
 	if distance >= 32 {
 		return true, nil
 	}
