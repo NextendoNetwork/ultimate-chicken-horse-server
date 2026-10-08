@@ -93,6 +93,18 @@ func TestNextendoAuthenticatedBoundary(t *testing.T) {
 	if calls != 1 {
 		t.Fatal("authority not consulted")
 	}
+	stage := ""
+	auth.ObserveVerification = func(value string) { stage = value }
+	for _, sample := range []struct{ external, stage string }{
+		{"2711", "external-identity-hex-unpadded"},
+		{"0000000000002711", "external-identity-hex-padded"},
+		{"2712", "external-identity"},
+	} {
+		if _, ok := auth.Verify(mint(Object{"sub": "10001"}, "RS256"), sample.external); ok || stage != sample.stage {
+			t.Fatal("identity diagnostics must reject aliases and report only the format stage")
+		}
+	}
+	auth.ObserveVerification = nil
 	forged := strings.Split(valid, ".")
 	changedSignature, _ := base64.RawURLEncoding.DecodeString(forged[2])
 	changedSignature[0] ^= 1

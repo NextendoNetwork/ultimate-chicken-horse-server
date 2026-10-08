@@ -384,7 +384,7 @@ func (b *Backend) messageForPeer(m Object, sid, peerIP string) Object {
 		}
 		var pending Object
 		if endpoint != nil && port != nil {
-			candidate := Object{"externalIPAddress": endpoint, "port": port}
+			candidate := Object{"externalIPAddress": endpoint, "port": port, "ownerID": s.profile}
 			if ep, ok := b.relay.Resolve(candidate); ok {
 				for k, v := range ep {
 					values[k] = v

@@ -255,6 +255,15 @@ func (a *NextendoAuth) VerifyForPeer(token, external, peerIP string) (string, bo
 	}
 	stage = "external-identity"
 	if !strings.EqualFold(str(claims["sub"]), external) {
+		// Identify fixture formatting mistakes without accepting aliases or logging IDs.
+		if id, err := strconv.ParseUint(str(claims["sub"]), 10, 64); err == nil {
+			hex := strconv.FormatUint(id, 16)
+			if strings.EqualFold(hex, external) {
+				stage = "external-identity-hex-unpadded"
+			} else if strings.EqualFold(strings.Repeat("0", 16-len(hex))+hex, external) {
+				stage = "external-identity-hex-padded"
+			}
+		}
 		return "", false
 	}
 	stage = "scope-or-time"

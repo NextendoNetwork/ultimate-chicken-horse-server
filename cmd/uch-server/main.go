@@ -147,7 +147,19 @@ func main() {
 		defer conn.Close()
 		go func() {
 			defer live.Stop()
-			options := transport.Options{PublicIP: netip.MustParseAddr(c.RelayPublicIP).Unmap(), Admission: admission, MaxPeers: 16, Snapshot: live.Update, Presence: func(peers []transport.PeerPresence) { presence.update(peers, admission) }}
+			var registered []netip.AddrPort
+			options := transport.Options{PublicIP: netip.MustParseAddr(c.RelayPublicIP).Unmap(), Admission: admission, MaxPeers: 16,
+				Snapshot: func(endpoints []netip.AddrPort) { registered = endpoints },
+				Presence: func(peers []transport.PeerPresence) {
+					owners := make(map[netip.AddrPort]string, len(registered))
+					for _, endpoint := range registered {
+						if account, ok := admission.Account(endpoint); ok {
+							owners[endpoint] = account
+						}
+					}
+					live.UpdateAuthenticated(owners)
+					presence.update(peers, admission)
+				}}
 			if os.Getenv("UCH_AUTH_DIAGNOSTIC") == "1" {
 				options.Trace = func(event transport.Event) {
 					log.Printf("UCH transport event=%s bytes=%d", event.Kind, event.FrameSize)
