@@ -85,13 +85,13 @@ On October 8, both Ryujinx clients passed the isolated account gate over public 
 
 The first public gameplay attempt exposed a NAT publication mismatch: the game's advertised host port differed from the observed UDP source port. The integrated service now snapshots registered UDP hosts together with their verified account ownership. Room publication resolves the creator's canonical profile to that authenticated endpoint; it never trusts a reported address/port to select another account's socket. Account lookup occurs outside the backend room/login lock. Automated checks cover pending publication, translated ports, two accounts sharing an IP, unknown owners and host disconnect cleanup.
 
-With the corrected service (Linux/amd64 SHA-256 `5b36bd0b866e9e171a412b56806cb093ec696e572215187fec85b4a313bcd8f8`), the operator confirmed that the public room appeared and the two Ryujinx clients joined and played. The emulator prototype SHA-256 is recorded privately with the test run. The operator then confirmed a second successful join and gameplay run with the host inverted. These runs use fictitious accounts against the isolated real account-service process, not production credentials or Switch acceptance. Rejoin and AFK checks remain pending until recorded below.
+With the corrected service (Linux/amd64 SHA-256 `5b36bd0b866e9e171a412b56806cb093ec696e572215187fec85b4a313bcd8f8`), the operator confirmed that the public room appeared and the two Ryujinx clients joined and played. The emulator prototype SHA-256 is recorded privately with the test run. The operator then confirmed a second successful join and gameplay run with the host inverted. These runs use fictitious accounts against the isolated real account-service process, not production credentials or Switch acceptance. The operator also confirmed leave/rejoin and five minutes AFK without disconnection. Host inversion exercised room recreation.
 
-The complete campaigns below remain pending. Previous staging results remain recorded separately.
+Ryujinx / Ryujinx passed the listed campaign with isolated accounts; the other pairs remain pending. Previous staging results remain recorded separately.
 
 | Pair | Host directions | Required checks |
 | --- | --- | --- |
-| Ryujinx / Ryujinx | Both | Join, gameplay, leave/rejoin, 5-minute AFK, room recreation |
+| Ryujinx / Ryujinx | Both — passed with isolated accounts | Join, gameplay, leave/rejoin, 5-minute AFK, room recreation: operator confirmed |
 | Citron / Citron | Both | Same checks |
 | Ryujinx / Citron | Both | Same checks |
 | Switch with Prelude / Ryujinx | Both | Same checks |
