@@ -26,7 +26,7 @@ The UDP listener port must match `relayPort`. Forward TCP 443 and UDP 19889 thro
 
 The dispatcher also attaches an optional top-level `nextendoTransport` descriptor after a verified session is established. Its fields are `protocol`, `ticket`, `expiresMs`, `relayIP` and `relayPort`. Dispatcher responses are length-framed and marked `no-store`. This permits a title-specific bridge to observe the descriptor without changing the game's request schema.
 
-The stock UCH UNET connect frame has no ticket field. Ryujinx, Citron and Prelude need a bridge that observes the authenticated session and transmits the bootstrap from the gameplay socket. Merely changing hosts or fetching a ticket from another socket does not implement this bridge. Local emulator prototypes implement this opt-in step for the exact UCH title; they are not published client releases or live gameplay acceptance. The bridge must handle bootstrap packet loss/order and rebootstrap after expiry; the current UDP bootstrap has no acknowledgement. Bearer bootstrap does not add cryptographic integrity to subsequent UNET packets.
+The stock UCH UNET connect frame has no ticket field. Ryujinx, Citron and Prelude need a bridge that observes the authenticated session and transmits the bootstrap from the gameplay socket. Merely changing hosts or fetching a ticket from another socket does not implement this bridge. Local emulator prototypes implement this opt-in step for the exact UCH title. The isolated-account emulator gameplay results are recorded below; these prototypes are not published client releases or physical Switch acceptance. The bridge must handle bootstrap packet loss/order and rebootstrap after expiry; the current UDP bootstrap has no acknowledgement. Bearer bootstrap does not add cryptographic integrity to subsequent UNET packets.
 
 ## Evidence
 
@@ -87,13 +87,17 @@ The first public gameplay attempt exposed a NAT publication mismatch: the game's
 
 With the corrected service (Linux/amd64 SHA-256 `5b36bd0b866e9e171a412b56806cb093ec696e572215187fec85b4a313bcd8f8`), the operator confirmed that the public room appeared and the two Ryujinx clients joined and played. The emulator prototype SHA-256 is recorded privately with the test run. The operator then confirmed a second successful join and gameplay run with the host inverted. These runs use fictitious accounts against the isolated real account-service process, not production credentials or Switch acceptance. The operator also confirmed leave/rejoin and five minutes AFK without disconnection. Host inversion exercised room recreation.
 
-Ryujinx / Ryujinx passed the listed campaign with isolated accounts; the other pairs remain pending. Previous staging results remain recorded separately.
+The operator also confirmed Ryujinx / Citron room discovery, join and gameplay in both host directions against the same Go service. Citron used an exact-title fixture override, a signed isolated-account credential, certificate pin/hostname/date verification, and a gameplay-socket UDP bootstrap. Client hashes are retained in the private run manifest. The operator additionally confirmed leave/rejoin and five minutes AFK without disconnection.
+
+The operator confirmed Citron / Citron room discovery, join and gameplay in both host directions, followed by leave/rejoin and five minutes AFK without disconnection. Both clients used separate isolated accounts and the same Go service candidate. Their private manifest records distinct client builds; the later build also binds an ephemeral host UDP port to avoid local client port collisions. Host inversion exercised room recreation.
+
+Ryujinx / Ryujinx, Ryujinx / Citron and Citron / Citron passed the listed campaigns with isolated accounts. Physical Switch campaigns and production-account acceptance remain pending. Previous staging results remain recorded separately.
 
 | Pair | Host directions | Required checks |
 | --- | --- | --- |
 | Ryujinx / Ryujinx | Both — passed with isolated accounts | Join, gameplay, leave/rejoin, 5-minute AFK, room recreation: operator confirmed |
-| Citron / Citron | Both | Same checks |
-| Ryujinx / Citron | Both | Same checks |
+| Citron / Citron | Both — passed with isolated accounts | Join, gameplay, leave/rejoin, 5-minute AFK, room recreation: operator confirmed |
+| Ryujinx / Citron | Both — passed with isolated accounts | Join, gameplay, leave/rejoin, 5-minute AFK, room recreation: operator confirmed |
 | Switch with Prelude / Ryujinx | Both | Same checks |
 | Switch with Prelude / Citron | Both | Same checks |
 | Physical Switch / physical Switch | Both, coordinated with owner | Same checks; two physical consoles required |
