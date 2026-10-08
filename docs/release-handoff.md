@@ -8,6 +8,8 @@ The stock Switch compatibility implementation is source revision `f107538`. Its 
 
 Actual Prelude console credentials must be accepted by the configured trusted signer mapping, profile authority and `/internal/online-check`. The current laboratory fixture issuer and fictitious account database do not establish that acceptance. Provision a dedicated authorized test account authority or a maintainer-approved connection to the existing authority; do not disable the gate or import production secrets without authorization. Confirm both consoles' successful verification before gameplay.
 
+The maintainer's subsequent decision is to run real-console acceptance on Nextendo-owned staging next to the account service, not the external laboratory. Use the [staging package and private configuration template](../deploy/nextendo-staging/README.md). Public BAAS keys can be provisioned from the maintained nx-account source; internal secrets and real account proofs remain on Nextendo infrastructure.
+
 ## Console acceptance
 
 | Pair | Host directions | Current candidate result |
