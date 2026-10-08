@@ -1,43 +1,66 @@
 # Ultimate Chicken Horse server for Nextendo integration
 
-Go implementation of the observed UCH authentication, lobby and relay-allocation contracts, with investigation notes and an independently supplied native UNET transport worker.
+Go implementation of the observed UCH authentication, lobby and relay-allocation contracts, with an experimental Go UDP transport and records of the earlier native-worker campaign.
 
 Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328`). This game uses brainCloud-compatible RPC scripts and MLAPI/UNET gameplay transport; it is separate from the NPLN Classics servers.
 
-## Current status
+## Go migration status (2026-10-08)
 
-| Pair | Owner-reported result on the original lab |
+| Component | Current implementation |
 | --- | --- |
-| Ryujinx / Ryujinx | Joining and gameplay; room remains during AFK |
-| Ryujinx host / Citron guest | Joining; both remain during AFK |
-| Citron / Citron | Creating, joining, leaving and rejoining |
-| Ryujinx / Switch | Confirmed in both host directions; clients remain in the room (Ryujinx V18) |
-| Citron / Switch | Confirmed in both host directions (Citron V4) |
+| TLS API, authentication, lobby lifecycle and regional allocation | Go; package tests pass |
+| Nextendo production login | Go RS256/account-proof verification, open account enrollment and required `/internal/online-check`; deployed-service acceptance pending |
+| UCH application relay routing | Connected to the experimental Go adapter under `internal/unettransport`; synthetic host/guest routing passes |
+| UNET UDP handshake, reliable delivery and keepalive | Experimental Go adapter handles the measured UCH profile; console/emulator gameplay passes in both host directions; production gates remain pending |
 
-The operator confirmed the requested local pairing tests are complete. They used the original Python control plane and native relay. **They do not certify the Go migration.** Exact AFK durations, four-player coverage and every recovery scenario were not individually timed or recorded. Both emulator/Switch host directions are confirmed. See [test status](docs/test-status.md) and the [staging handoff](docs/staging-handoff.md).
+The [multi-peer Go adapter](docs/go-transport-adapter.md) handles large and grouped records, ordered delivery, channel-byte and full reliable-ID sequence wrap, retransmission and disconnect cleanup. Two private native reference clients joined one Go-only room and exchanged a large message and targeted reply. This is synthetic interoperability, not real-game acceptance or approval for the VPS.
 
-## Build and run
+**Production release remains held pending acceptance.** The integrated service has account-bound Go UDP transport, persistent operation and resource bounds, with no Unity DLL or .NET runtime dependency. The earlier original-worker path and its unresolved DLL terms are historical; see [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
 
-Requirements: Go 1.27.1+, a private TLS certificate/key, explicitly enrolled identities, trusted BAAS public keys for Nextendo mode, and a running compatible UNET worker.
+The [integrated Go testing path](docs/integrated-go-testing.md) connects verified HTTP sessions to one-use UDP tickets. Public-network Ryujinx/Ryujinx, Ryujinx/Citron and Citron/Citron campaigns passed both host directions, gameplay, rejoin and five minutes AFK using isolated signed accounts. An opt-in [stock Switch compatibility path](docs/stock-switch-compatibility.md) correlates a verified Switch HTTPS session with UDP source IP for 30 seconds and rejects ambiguous pending accounts. It requires no game UDP client change, but has weaker attribution on shared NAT. Automated and synthetic public-network checks pass; physical acceptance on this candidate and authorized real-account integration remain pending. The [account-service diff](integration/README.md) is supplied for maintainer review, without production changes.
+
+### Game tests with the new Go transport
+
+Physical Switch / Citron and physical Switch / Ryujinx: both host directions entered and played, operator-confirmed on 2026-10-07. Emulator-host rooms also passed Switch reentry and five minutes AFK by operator report. See [Go-only acceptance](docs/go-only-acceptance.md) for runtime hashes, the first failed reversal and evidence limits. Final physical Switch/Switch, recovery and production gates remain pending.
+
+### Earlier manual game tests against the Go control plane
+
+| Pair | Operator-confirmed result |
+| --- | --- |
+| Ryujinx / Ryujinx | Pass reported |
+| Ryujinx host / Citron guest | Room entry confirmed |
+| Citron / Citron | Both players in the lobby |
+| Ryujinx host / Switch guest | Room entry and persistence reported |
+| Citron / Switch | Room entry in both host directions; both remain in the room |
+| Switch / Switch | Two physical consoles joined and played together, operator-confirmed; [evidence limits](docs/switch-switch-acceptance.md) |
+
+The earlier emulator/console runs used Go for HTTP services and the native worker for gameplay, with explicit emulator lab credentials and strict console account-proof verification. The Switch/Switch confirmation does not separately establish the account mode or exact runtime revision. They did not test the new production online gate or an independent Go UDP transport. The first Citron-host/Switch-guest attempt timed out; retry succeeded without a code change. Exact AFK durations, completed levels and all recovery scenarios were not measured. Full evidence limits and historical Python tests are in [test status](docs/test-status.md).
+
+## Build the Go service
+
+Go 1.27.1+ is used by the current verification campaign:
 
 ```sh
-go test ./... -timeout 60s
+go test -buildvcs=false ./... -timeout 60s
 go vet ./...
-go build -o bin/uch-server ./cmd/uch-server
+go build -buildvcs=false -o bin/uch-server ./cmd/uch-server
 ```
 
-For Nextendo mode, copy `config.nextendo.example.json` to ignored `private/config.json`, provision trusted public BAAS keys and enroll the intended accounts. See [account authentication](docs/nextendo-authentication.md). `config.example.json` is the explicitly enabled local lab alternative. Start the separately built [UNET worker](transport/unet-worker/README.md), then run:
+This binary has no linked Unity DLLs and no third-party Go modules. With `-go-transport`, it implements the HTTP control plane and integrated Go gameplay transport. A successful build is not a complete-server deployment approval.
+
+For production account mode, copy `config.nextendo.example.json` to ignored `private/config.json`. Provision TLS, trusted BAAS public keys, the private account-service internal key, and the reviewed device-kind mapping. `allowAllAccounts: true` delegates eligibility to Nextendo; omit `allowedSubjects` and disable lab mode. See [account authentication](docs/nextendo-authentication.md).
+
+An operator-configured staging invocation is:
 
 ```sh
-bin/uch-server -config private/config.json -addr 127.0.0.2:443
+bin/uch-server -config private/config.json -addr 0.0.0.0:443
 ```
 
-The default `-addr` is `127.0.0.2:8443`; the game lab uses port 443. Relative paths in the configuration resolve against the working directory.
-
-The Go service serves TLS `/dispatcherv2`, regional protobuf allocation routes and `/health`. It fails room creation/allocation when the worker snapshot is stale. The UNET wire transport is **not ported to Go**; the worker retains a .NET/native dependency. No native DLLs are distributed here.
+All advertised server/peer addresses and secret paths must be supplied privately by the operator. Example addresses are placeholders or loopback, never the author's residential network. Relative paths resolve against the working directory. The service fails allocation/publication when its transport state is unavailable or stale. The [legacy worker](transport/unet-worker/README.md) documents the existing test implementation; its unresolved binary terms prohibit presenting it as an approved VPS package.
 
 ## Integration and client fixes
 
+- [Go migration and remaining wire transport](docs/go-migration.md)
 - [Protocol and architecture](docs/protocol.md)
 - [Nextendo integration gates](docs/nextendo-integration.md)
 - [Nextendo account authentication](docs/nextendo-authentication.md)
@@ -61,8 +84,8 @@ See [credits and references](CREDITS.md) for upstream attribution and scope.
 
 ## License
 
-Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The [UNET worker directory](transport/unet-worker/LICENSE.txt) is licensed under MIT, with the original reference notice preserved. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
+Original Go code, scripts and documentation use [PolyForm Shield 1.0.0](LICENSE.md), following the existing Nextendo project policy. The retained [UNET reference notices](transport/unet-worker/LICENSE.txt) keep their MIT terms. The imported personal Go components retain their MIT notices; see the pinned import record in docs/imported-go-components.md. External emulator code and private native dependencies keep their own terms; see the [component inventory](docs/licensing.md). PolyForm Shield includes a noncompete restriction.
 
-Nextendo mode verifies signed BAAS credentials and checks the enclosed proof with the Nextendo account authority. Local lab credentials remain marked `uch-local-lab` and require `enableLabAuth: true`; do not deploy lab mode as a production account service. Native binary terms, Go gameplay acceptance and transport/account binding remain deployment gates.
+Nextendo mode verifies signed BAAS credentials and checks the enclosed proof with the Nextendo account authority. Local lab credentials remain marked `uch-local-lab` and require `enableLabAuth: true`; do not deploy lab mode as a production account service. Native binary terms or their removal, production account acceptance and transport/account binding remain deployment gates. Switch/Switch room entry and gameplay are now operator-confirmed; measured recovery scenarios remain separate.
 
 Game archives, firmware, keys, account files, captures, certificates and compiled emulator/native binaries are excluded. The source changes and documents describe the observed interfaces without distributing those private inputs.

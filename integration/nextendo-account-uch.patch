@@ -1,0 +1,79 @@
+diff --git a/online_presence.go b/online_presence.go
+index 7bad832..096493d 100644
+--- a/online_presence.go
++++ b/online_presence.go
+@@ -39,7 +39,7 @@ func gameStatsURLs() []string {
+ 		}
+ 		return d
+ 	}
+-	return []string{
++	urls := []string{
+ 		env("DASH_MK8_URL", "http://mk8nex:8082"),
+ 		env("DASH_S2_URL", "http://s2nex:8083"),
+ 		env("DASH_SSBU_URL", "http://ssbusecure:8084"),
+@@ -48,6 +48,11 @@ func gameStatsURLs() []string {
+ 		// takes the account's online slot, so the same account can be online in two games.
+ 		env("DASH_MPS_URL", "http://mps:8103"),
+ 	}
++	// Optional UCH presence; leave unset to preserve the existing sources.
++	if uch := os.Getenv("DASH_UCH_URL"); uch != "" {
++		urls = append(urls, uch)
++	}
++	return urls
+ }
+ 
+ // ghostIdleSeconds : au-delà de ce temps sans la moindre action, une entrée de /api/stats
+diff --git a/online_presence_uch_test.go b/online_presence_uch_test.go
+new file mode 100644
+--- /dev/null
++++ b/online_presence_uch_test.go
+@@ -0,0 +1,49 @@
++package main
++
++import (
++	"fmt"
++	"net/http"
++	"net/http/httptest"
++	"testing"
++)
++
++func TestOptionalUCHPresenceURL(t *testing.T) {
++	t.Setenv("DASH_UCH_URL", "")
++	baseline := gameStatsURLs()
++	t.Setenv("DASH_UCH_URL", "http://127.0.0.1:8089")
++	withUCH := gameStatsURLs()
++	if len(withUCH) != len(baseline)+1 || withUCH[len(baseline)] != "http://127.0.0.1:8089" {
++		t.Fatal("optional UCH presence was not appended")
++	}
++	for i := range baseline {
++		if baseline[i] != withUCH[i] {
++			t.Fatal("an existing game source changed")
++		}
++	}
++}
++
++func TestUCHLivePresenceOccupiesAccountSlot(t *testing.T) {
++	empty := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		fmt.Fprint(w, `{"game":"fixture","players":[]}`)
++	}))
++	defer empty.Close()
++	for _, name := range []string{"DASH_MK8_URL", "DASH_S2_URL", "DASH_SSBU_URL", "DASH_ACNH_URL", "DASH_MPS_URL"} {
++		t.Setenv(name, empty.URL)
++	}
++	t.Setenv("DASH_TOKEN", "presence-test-key")
++	uch := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Path != "/api/stats" || r.URL.Query().Get("key") != "presence-test-key" {
++			t.Error("incorrect presence request")
++		}
++		fmt.Fprint(w, `{"game":"UCH","players":[{"pid":123,"idleSeconds":0}]}`)
++	}))
++	defer uch.Close()
++	t.Setenv("DASH_UCH_URL", uch.URL)
++	if playing, source := pidPlayingNow(123); !playing || source != uch.URL {
++		t.Fatal("UCH peer did not occupy account slot")
++	}
++	t.Setenv("DASH_UCH_URL", "")
++	if playing, _ := pidPlayingNow(123); playing {
++		t.Fatal("disabled UCH source still occupied account slot")
++	}
++}

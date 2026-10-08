@@ -8,7 +8,7 @@ Supported operations:
 
 | Service / script | Contract |
 | --- | --- |
-| authenticationV2 / AUTHENTICATE | Nextendo RS256/account-proof identity, or explicitly enabled lab identity; session ID, expiry, player fields, `identity.identityData` |
+| authenticationV2 / AUTHENTICATE | Nextendo RS256/account-proof identity and required production online gate, or explicitly enabled lab identity; session ID, expiry, player fields, `identity.identityData` |
 | playerState / LOGOUT | Removes the caller's session and room |
 | events/createMatch_JS | Creates one pending room per owner; `scriptData.match` envelope |
 | events/setLobbyData | Owner-only publication; immutable owner/code; observed endpoint resolution |
@@ -26,7 +26,11 @@ Port values are JSON integers: the game's integer accessor does not coerce strin
 
 The AP/EU/NA service names are `ap.ultimatechickenhorseserver.com`, `eu.ultimatechickenhorseserver.com` and `na.ultimatechickenhorseserver.com`. `/health/ping` returns an empty protobuf body. `/health/get-ip` returns string field 1. `/relay/get-next-available` and `/relay/get-game-server` return address field 1 and integer port field 2. The lab port is 18888.
 
-## Gameplay transport
+## Application router in Go
+
+The separately prepared personal Go library implements the decoded relay-message contract below in Go. It returns send/disconnect actions, enforces membership and resource bounds, and exposes host endpoints. It is not connected to a UDP adapter yet.
+
+## Legacy gameplay transport
 
 The worker uses native UNET, packet size 1312, fragment size 900, connection timeout 1000 ms, disconnect timeout 4000 ms, ping timeout 500 ms and ACK delay 33 ms. Channels 0 and 3 are ReliableSequenced, 1 is Unreliable, 2 is AllCostDelivery. The observed configuration checksum is 2944057210.
 
