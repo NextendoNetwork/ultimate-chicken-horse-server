@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Package transport is an experimental UCH-profile Go UDP adapter.
-// Endpoint enrollment is staging admission, not Nextendo account binding.
+// Supports authenticated UDP bootstrap or explicit staging enrollment.
 package transport
 
 import (
@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"time"
 	relay "uch-server/internal/relayrouter"
+	"uch-server/internal/transportauth"
 	wire "uch-server/internal/unetwire"
 )
 
@@ -26,9 +27,15 @@ type Event struct {
 type Options struct {
 	PublicIP   netip.Addr
 	AllowedIPs map[netip.Addr]bool
+	Admission  *transportauth.Admission
 	MaxPeers   int
 	Snapshot   func([]netip.AddrPort)
+	Presence   func([]PeerPresence)
 	Trace      func(Event)
+}
+type PeerPresence struct {
+	Endpoint netip.AddrPort
+	LastSeen time.Time
 }
 type Stats struct{ Connected, ReceivedMessages, SentMessages, Retransmissions, RejectedFrames, Disconnected, UnknownPeerFrames uint64 }
 type pending struct {
@@ -78,8 +85,10 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 			o.Trace(Event{kind, id, size, detail})
 		}
 	}
-	if conn == nil || !o.PublicIP.Is4() || o.PublicIP.IsUnspecified() || len(o.AllowedIPs) == 0 {
-		return stats, errors.New("explicit IPv4 endpoint enrollment required")
+	if conn == nil || !o.PublicIP.Is4() || o.PublicIP.IsUnspecified() ||
+		(o.Admission == nil && len(o.AllowedIPs) == 0) ||
+		(o.Admission != nil && len(o.AllowedIPs) != 0) {
+		return stats, errors.New("select authenticated admission or explicit staging enrollment")
 	}
 	if o.MaxPeers == 0 {
 		o.MaxPeers = 16
@@ -122,6 +131,9 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 		}
 		delete(peers, p.id)
 		delete(addresses, p.address)
+		if o.Admission != nil {
+			o.Admission.Forget(p.address)
+		}
 		stats.Disconnected++
 		trace("disconnect", p, 0, fmt.Sprintf("notify=%v pending=%d queue=%d", notify, len(p.pending), len(p.queue)))
 		if notify {
@@ -188,8 +200,21 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 				o.Snapshot(router.Endpoints())
 			}
 			lastSnapshot = now
+			if o.Presence != nil {
+				current := make([]PeerPresence, 0, len(peers))
+				for _, p := range peers {
+					if now.Sub(p.lastSeen) < 4*time.Second {
+						current = append(current, PeerPresence{p.address, p.lastSeen})
+					}
+				}
+				o.Presence(current)
+			}
 		}
 		for _, p := range peers {
+			if o.Admission != nil && !o.Admission.Authorized(p.address) {
+				drop(p, true)
+				continue
+			}
 			if now.Sub(p.lastSeen) >= 4*time.Second {
 				trace("timeout", p, 0, "no-valid-packet")
 				drop(p, true)
@@ -230,11 +255,22 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 			return stats, e
 		}
 		from = netip.AddrPortFrom(from.Addr().Unmap(), from.Port())
-		if !o.AllowedIPs[from.Addr()] || n < 2 || n > wire.UCHPacketSize {
+		if n < 2 || n > wire.UCHPacketSize {
 			stats.RejectedFrames++
 			continue
 		}
 		b := buffer[:n]
+		if o.Admission != nil && transportauth.IsBootstrap(b) {
+			if !o.Admission.Bind(b, from) {
+				stats.RejectedFrames++
+			}
+			continue
+		}
+		if (o.Admission != nil && !o.Admission.Authorized(from)) ||
+			(o.Admission == nil && !o.AllowedIPs[from.Addr()]) {
+			stats.RejectedFrames++
+			continue
+		}
 		p := addresses[from]
 		if request, e := wire.ParseConnectRequest(b); e == nil {
 			if request.Version != wire.ObservedUCHVersion || request.ConfigurationChecksum != wire.ObservedUCHChecksum || request.Header.SourceConnection == 0 || request.Header.DestinationConnection != 0 {
@@ -339,6 +375,9 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 	}
 	if o.Snapshot != nil {
 		o.Snapshot(nil)
+	}
+	if o.Presence != nil {
+		o.Presence(nil)
 	}
 	return stats, nil
 }

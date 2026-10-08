@@ -17,6 +17,8 @@ The [multi-peer Go adapter](docs/go-transport-adapter.md) handles large and grou
 
 **Production release remains held.** The Go API can read room-state snapshots from `cmd/unet-staging` for a DLL-free staging path. The new adapter still lacks production transport/account binding and completed release acceptance. The earlier original-worker path depends on three private Unity-related DLLs whose runtime terms remain unresolved. See [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
 
+An [integrated Go testing path](docs/integrated-go-testing.md) now connects verified HTTP sessions to one-use UDP tickets and runs the adapter in the same persistent process. Automated account/UDP integration passes with a simulated authority. Client bootstrap integration in Ryujinx, Citron and Prelude, live account-gate acceptance and public-router gameplay remain pending; this does not approve a production deployment.
+
 ### Game tests with the new Go transport
 
 Physical Switch / Citron and physical Switch / Ryujinx: both host directions entered and played, operator-confirmed on 2026-10-07. Emulator-host rooms also passed Switch reentry and five minutes AFK by operator report. See [Go-only acceptance](docs/go-only-acceptance.md) for runtime hashes, the first failed reversal and evidence limits. Final physical Switch/Switch, recovery and production gates remain pending.

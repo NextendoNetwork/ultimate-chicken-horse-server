@@ -30,7 +30,10 @@ type session struct {
 	profile string
 	expires time.Time
 }
-type profile struct{ created, last, count int64 }
+type profile struct {
+	created, last, count int64
+	accountPID           string
+}
 type room struct {
 	data         Object
 	expires      time.Time
@@ -194,6 +197,15 @@ func (b *Backend) expire() {
 			}
 		}
 	}
+	active := make(map[string]bool, len(b.sessions))
+	for _, s := range b.sessions {
+		active[s.profile] = true
+	}
+	for id, p := range b.profiles {
+		if !active[id] && now.UnixMilli()-p.last >= int64((24*time.Hour)/time.Millisecond) {
+			delete(b.profiles, id)
+		}
+	}
 }
 func (b *Backend) Dispatch(packet Object) (Object, error) {
 	return b.DispatchForPeer(packet, "")
@@ -263,11 +275,17 @@ func (b *Backend) messageForPeer(m Object, sid, peerIP string) Object {
 		pid := ProfileID(subject)
 		now := b.now()
 		p, newUser := b.profiles[pid]
+		if len(b.sessions) >= 4096 || (!newUser && len(b.profiles) >= 4096) {
+			return failure(503, 50300)
+		}
 		if !newUser {
 			p = &profile{created: now.UnixMilli()}
 			b.profiles[pid] = p
 		}
 		previous := p.last
+		if b.nextendo != nil {
+			p.accountPID = subject // Canonical PID returned by the verified account authority.
+		}
 		p.last = now.UnixMilli()
 		p.count++
 		sid := opaque(32)

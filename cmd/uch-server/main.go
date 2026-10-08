@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
@@ -12,9 +13,14 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 	"uch-server/internal/backend"
+	"uch-server/internal/transportauth"
+	transport "uch-server/internal/unettransport"
 )
 
 type config struct {
@@ -34,6 +40,10 @@ type config struct {
 func main() {
 	path := flag.String("config", "", "private operator configuration JSON")
 	address := flag.String("addr", "127.0.0.2:8443", "TLS listen address")
+	goTransport := flag.Bool("go-transport", false, "integrated account-bound Go UDP transport; requires client bootstrap integration")
+	udpAddress := flag.String("udp-addr", "127.0.0.1:19889", "Go transport UDP listener; port must match configured relayPort")
+	statsAddress := flag.String("stats-addr", "", "optional loopback-only HTTP account presence listener")
+	statsKeyEnv := flag.String("stats-key-env", "UCH_STATS_KEY", "environment variable containing the private presence key")
 	flag.Parse()
 	if *path == "" {
 		log.Fatal("-config is required")
@@ -62,7 +72,7 @@ func main() {
 	if c.RelayPort < 1 || c.RelayPort > 65535 {
 		log.Fatal("invalid relay port")
 	}
-	if len(c.AllowedEndpointIPs) == 0 {
+	if !*goTransport && len(c.AllowedEndpointIPs) == 0 {
 		c.AllowedEndpointIPs = []string{"127.0.0.1", "127.0.0.2"}
 	}
 	allowed := map[string]bool{}
@@ -73,7 +83,15 @@ func main() {
 		}
 		allowed[parsed.String()] = true
 	}
-	relay := &backend.FileRelay{Path: c.RelayStatePath, PublicIP: c.RelayPublicIP, Port: c.RelayPort, AllowedIPs: allowed}
+	var relay backend.Relay = &backend.FileRelay{Path: c.RelayStatePath, PublicIP: c.RelayPublicIP, Port: c.RelayPort, AllowedIPs: allowed}
+	var live *backend.LiveRelay
+	if *goTransport {
+		if c.NextendoAuth == nil || c.EnableLabAuth || len(c.AllowedEndpointIPs) != 0 || c.RelayStatePath != "" {
+			log.Fatal("integrated transport requires Nextendo mode without static peer enrollment or snapshot files")
+		}
+		live = &backend.LiveRelay{}
+		relay = live
+	}
 	var b *backend.Backend
 	if c.LabConsoleAuth != nil && (!c.EnableLabAuth || c.NextendoAuth != nil) {
 		log.Fatal("labConsoleAuth requires explicit lab mode and cannot accompany production Nextendo authentication")
@@ -105,15 +123,75 @@ func main() {
 	if e != nil {
 		log.Fatal(e)
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go b.Maintain(ctx)
+	var admission *transportauth.Admission
+	presence := &presenceCache{}
+	if live != nil {
+		admission, e = transportauth.New(b.TransportSession, 128, 16)
+		if e != nil {
+			log.Fatal("cannot initialize account admission")
+		}
+		udp, err := net.ResolveUDPAddr("udp4", *udpAddress)
+		if err != nil || udp.Port != c.RelayPort {
+			log.Fatal("UDP listener and advertised relay port must match")
+		}
+		conn, err := net.ListenUDP("udp4", udp)
+		if err != nil {
+			log.Fatal("cannot open Go transport listener")
+		}
+		defer conn.Close()
+		go func() {
+			defer live.Stop()
+			_, err := transport.Serve(ctx, conn, transport.Options{PublicIP: netip.MustParseAddr(c.RelayPublicIP).Unmap(), Admission: admission, MaxPeers: 16, Snapshot: live.Update, Presence: func(peers []transport.PeerPresence) { presence.update(peers, admission) }})
+			if err != nil {
+				log.Print("Go transport stopped with an error")
+			}
+			stop()
+		}()
+	}
+	if *statsAddress != "" {
+		host, _, err := net.SplitHostPort(*statsAddress)
+		ip := net.ParseIP(host)
+		key := os.Getenv(*statsKeyEnv)
+		if live == nil || err != nil || ip == nil || !ip.IsLoopback() || len(key) < 32 {
+			log.Fatal("presence requires integrated transport, a literal loopback listener and a private key of at least 32 bytes")
+		}
+		listener, err := net.Listen("tcp", *statsAddress)
+		if err != nil {
+			log.Fatal("cannot open private presence listener")
+		}
+		statsMux := http.NewServeMux()
+		statsMux.Handle("/api/stats", presence.handler(key))
+		statsServer := &http.Server{Handler: statsMux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second, IdleTimeout: 5 * time.Second, MaxHeaderBytes: 4096}
+		defer statsServer.Close()
+		go func() {
+			if err := statsServer.Serve(listener); err != nil && err != http.ErrServerClosed {
+				log.Print("private presence listener failed")
+				stop()
+			}
+		}()
+	}
 	mux := http.NewServeMux()
+	if admission != nil {
+		mux.Handle("/transport/ticket", admission.Handler())
+	}
 	reply := func(w http.ResponseWriter, status int, value any) {
+		raw, err := json.Marshal(value)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		raw = append(raw, '\n')
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Connection", "close")
+		w.Header().Set("Content-Length", fmt.Sprint(len(raw)))
 		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(value)
+		w.Write(raw)
 	}
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		reply(w, 200, backend.Object{"status": "lab-prototype", "title": backend.Title, "relayAvailable": relay.Available()})
+		reply(w, 200, backend.Object{"status": "testing", "title": backend.Title, "relayAvailable": relay.Available(), "integratedGoTransport": live != nil})
 	})
 	mux.HandleFunc("/dispatcherv2", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
@@ -148,6 +226,9 @@ func main() {
 			reply(w, 400, backend.Object{"error": "invalid request"})
 			return
 		}
+		sessionID, _ := packet["sessionId"].(string)
+		attachTransportTicket(result, sessionID, admission, c.RelayPublicIP, c.RelayPort)
+		w.Header().Set("Cache-Control", "no-store")
 		reply(w, 200, clientView(result, r.RemoteAddr, c.RelayPublicIP))
 		// No headers, request bodies, identifiers or credentials are logged.
 		responses, _ := result["responses"].([]any)
@@ -204,5 +285,13 @@ func main() {
 		}
 	}}
 	log.Print("UCH Go control plane starting; configured transport state required")
-	log.Fatal(server.ListenAndServeTLS(c.CertificatePem, c.PrivateKeyPem))
+	go func() {
+		<-ctx.Done()
+		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		server.Shutdown(shutdown)
+	}()
+	if err := server.ListenAndServeTLS(c.CertificatePem, c.PrivateKeyPem); err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
 }

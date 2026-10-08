@@ -1,0 +1,20 @@
+{
+  "enableLabAuth": false,
+  "nextendoAuth": {
+    "jwksPath": "private/nextendo-baas-jwks.json",
+    "issuer": "https://e0d67c509fb203858ebcb2fe3f88c2aa.baas.nintendo.com",
+    "audience": "ed9e2f05d286f7b8",
+    "allowAllAccounts": true,
+    "onlineCheckURL": "http://127.0.0.1:3000/internal/online-check",
+    "internalKeyEnv": "NEXTENDO_INTERNAL_KEY",
+    "deviceKindsByKeyId": {
+      "REPLACE_WITH_TRUSTED_SWITCH_KEY_ID": "switch",
+      "REPLACE_WITH_TRUSTED_RYUJINX_KEY_ID": "ryujinx",
+      "REPLACE_WITH_TRUSTED_CITRON_KEY_ID": "ryujinx"
+    }
+  },
+  "certificatePem": "private/server-cert.pem",
+  "privateKeyPem": "private/server-key.pem",
+  "relayPublicIP": "REPLACE_WITH_REACHABLE_PUBLIC_IPV4",
+  "relayPort": 19889
+}

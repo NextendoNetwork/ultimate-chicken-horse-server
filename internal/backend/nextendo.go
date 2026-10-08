@@ -29,6 +29,7 @@ type NextendoConfig struct {
 	OnlineCheckURL     string            `json:"onlineCheckURL"`
 	InternalKeyEnv     string            `json:"internalKeyEnv"`
 	DeviceKindsByKeyID map[string]string `json:"deviceKindsByKeyId"`
+	ProfileURL         string            `json:"profileURL"`
 }
 
 type NextendoAuth struct {
@@ -58,6 +59,15 @@ func NewNextendoAuth(c NextendoConfig, subjects []string) (*NextendoAuth, error)
 		return nil, errors.New("invalid public JWKS")
 	}
 	a := &NextendoAuth{keys: map[string]*rsa.PublicKey{}, issuer: c.Issuer, audience: c.Audience, allowed: map[string]bool{}, now: time.Now, profile: nextendoProfile}
+	if c.ProfileURL != "" {
+		u, err := url.Parse(c.ProfileURL)
+		ip := net.ParseIP(uHostname(u))
+		if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "/api/profile" ||
+			(u.Scheme != "https" && !(u.Scheme == "http" && ip != nil && ip.IsLoopback())) {
+			return nil, errors.New("invalid trusted account profile URL")
+		}
+		a.profile = profileClient(c.ProfileURL)
+	}
 	for _, k := range set.Keys {
 		if k.Kty != "RSA" || k.Use != "sig" || k.Alg != "RS256" {
 			continue
@@ -150,25 +160,34 @@ func onlineCheckClient(endpoint, secret string) func(uint64, string, string) boo
 }
 
 func nextendoProfile(proof string) (string, error) {
-	client := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	request, _ := http.NewRequest("GET", "https://nextendo.network/api/profile", nil)
-	request.Header.Set("Authorization", "Bearer "+proof)
-	response, err := client.Do(request)
-	if err != nil {
-		return "", errors.New("account verification unavailable")
+	return profileClient("https://nextendo.network/api/profile")(proof)
+}
+
+func profileClient(endpoint string) func(string) (string, error) {
+	return func(proof string) (string, error) {
+		client := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		request, err := http.NewRequest("GET", endpoint, nil)
+		if err != nil {
+			return "", errors.New("invalid account profile URL")
+		}
+		request.Header.Set("Authorization", "Bearer "+proof)
+		response, err := client.Do(request)
+		if err != nil {
+			return "", errors.New("account verification unavailable")
+		}
+		defer response.Body.Close()
+		raw, err := io.ReadAll(io.LimitReader(response.Body, 65537))
+		if err != nil || response.StatusCode != 200 || len(raw) > 65536 {
+			return "", errors.New("account proof rejected")
+		}
+		var result struct {
+			Username string `json:"username"`
+		}
+		if json.Unmarshal(raw, &result) != nil || result.Username == "" {
+			return "", errors.New("invalid account response")
+		}
+		return result.Username, nil
 	}
-	defer response.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(response.Body, 65537))
-	if err != nil || response.StatusCode != 200 || len(raw) > 65536 {
-		return "", errors.New("account proof rejected")
-	}
-	var result struct {
-		Username string `json:"username"`
-	}
-	if json.Unmarshal(raw, &result) != nil || result.Username == "" {
-		return "", errors.New("invalid account response")
-	}
-	return result.Username, nil
 }
 
 // Verify returns the account PID only after checking the BAAS signature, scope,

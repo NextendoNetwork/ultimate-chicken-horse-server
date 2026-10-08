@@ -1,20 +1,27 @@
 package backend
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+	"uch-server/internal/transportauth"
+	transport "uch-server/internal/unettransport"
+	wire "uch-server/internal/unetwire"
 )
 
 func TestNextendoAuthenticatedBoundary(t *testing.T) {
@@ -37,6 +44,13 @@ func TestNextendoAuthenticatedBoundary(t *testing.T) {
 	production := NextendoConfig{JWKSPath: path, Issuer: "issuer", Audience: "audience", AllowAllAccounts: true, OnlineCheckURL: "http://127.0.0.1:3000/internal/online-check", InternalKeyEnv: "UCH_TEST_INTERNAL_KEY", DeviceKindsByKeyID: map[string]string{"test": "switch"}}
 	if _, err := NewNextendoAuth(production, nil); err != nil {
 		t.Fatal("open account configuration rejected", err)
+	}
+	for _, endpoint := range []string{"http://accounts.example/api/profile", "https://accounts.example/other", "https://user:secret@accounts.example/api/profile", "https://accounts.example/api/profile?token=x"} {
+		bad := production
+		bad.ProfileURL = endpoint
+		if _, err := NewNextendoAuth(bad, nil); err == nil {
+			t.Fatal("unsafe profile authority URL accepted")
+		}
 	}
 	if _, err := NewNextendoAuth(production, []string{"123"}); err == nil {
 		t.Fatal("ambiguous allowlist/open enrollment accepted")
@@ -133,6 +147,69 @@ func TestNextendoAuthenticatedBoundary(t *testing.T) {
 	if gateCalls != 1 {
 		t.Fatal("verified login did not consult online-check")
 	}
+	t.Run("verified login to authenticated UDP adapter", func(t *testing.T) {
+		admission, err := transportauth.New(b.TransportSession, 4, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sessionID := str(obj(login["data"])["sessionId"])
+		ticket, _, err := admission.Issue(sessionID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		server, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer server.Close()
+		client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer client.Close()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		done := make(chan error, 1)
+		go func() {
+			_, err := transport.Serve(ctx, server, transport.Options{PublicIP: netip.MustParseAddr("127.0.0.1"), Admission: admission, MaxPeers: 2})
+			done <- err
+		}()
+		frame := make([]byte, 19)
+		frame[2] = 1
+		frame[5] = 10
+		frame[6] = 11
+		binary.BigEndian.PutUint16(frame[7:9], 1)
+		binary.BigEndian.PutUint32(frame[11:15], wire.ObservedUCHVersion)
+		binary.BigEndian.PutUint32(frame[15:19], wire.ObservedUCHChecksum)
+		destination := server.LocalAddr().(*net.UDPAddr)
+		client.WriteToUDP(frame, destination)
+		client.SetReadDeadline(time.Now().Add(150 * time.Millisecond))
+		buffer := make([]byte, 1312)
+		if _, _, err := client.ReadFromUDP(buffer); err == nil {
+			t.Fatal("unenrolled UDP accepted")
+		}
+		bootstrap, _ := transportauth.Bootstrap(ticket)
+		client.WriteToUDP(bootstrap, destination)
+		client.WriteToUDP(frame, destination)
+		client.SetReadDeadline(time.Now().Add(time.Second))
+		n, _, err := client.ReadFromUDP(buffer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := wire.ParseObservedControl(buffer[:n]); err != nil {
+			t.Fatal("authenticated UDP handshake rejected", err)
+		}
+		b.mu.Lock()
+		delete(b.sessions, sessionID)
+		b.mu.Unlock()
+		if admission.Authorized(client.LocalAddr().(*net.UDPAddr).AddrPort()) {
+			t.Fatal("logout did not revoke adapter enrollment")
+		}
+		cancel()
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	})
 	otherProof := "nx2." + encode([]byte("456.Soul.2000")) + ".authority-checks-the-signature"
 	auth.onlineCheck = func(pid uint64, kind, ip string) bool { return pid == 456 && kind == "switch" && ip == "127.0.0.9" }
 	if pid, ok := auth.VerifyForPeer(mint(Object{"nnex": otherProof}, "RS256"), "abcdef", "127.0.0.9"); !ok || pid != "456" {
