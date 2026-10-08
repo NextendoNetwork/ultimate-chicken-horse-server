@@ -262,12 +262,16 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 		b := buffer[:n]
 		if o.Admission != nil && transportauth.IsBootstrap(b) {
 			if !o.Admission.Bind(b, from) {
+				trace("bootstrap-reject", nil, n, "admission rejected")
 				stats.RejectedFrames++
+			} else {
+				trace("bootstrap", nil, n, "admission accepted")
 			}
 			continue
 		}
 		if (o.Admission != nil && !o.Admission.Authorized(from)) ||
 			(o.Admission == nil && !o.AllowedIPs[from.Addr()]) {
+			trace("admission-reject", nil, n, "unauthorized endpoint")
 			stats.RejectedFrames++
 			continue
 		}

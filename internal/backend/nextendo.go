@@ -250,9 +250,14 @@ func (a *NextendoAuth) VerifyForPeer(token, external, peerIP string) (string, bo
 	exp, ok := number(claims["exp"])
 	iat, issued := number(claims["iat"])
 	now := a.now().Unix()
-	if !ok || !issued || now >= exp || iat > now+30 || str(claims["iss"]) != a.issuer || str(claims["aud"]) != a.audience || !strings.EqualFold(str(claims["sub"]), external) {
+	if !ok || !issued || now >= exp || iat > now+30 || str(claims["iss"]) != a.issuer || str(claims["aud"]) != a.audience {
 		return "", false
 	}
+	stage = "external-identity"
+	if !strings.EqualFold(str(claims["sub"]), external) {
+		return "", false
+	}
+	stage = "scope-or-time"
 	if v, exists := claims["nbf"]; exists {
 		n, valid := number(v)
 		if !valid || n > now+30 {

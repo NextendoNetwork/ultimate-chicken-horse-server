@@ -60,7 +60,9 @@ The integrated Go service was started under a user supervisor on the separate te
 
 The Citron prototype compiled. Its source-linked check passed fragmented HTTP parsing, ticket decoding, destination binding, expiry, invalid-ticket rejection, buffer bounds and exact UCH connect detection. The Ryujinx HLE prototype compiled; its source-linked check passed fragmented HTTP observation, credential redaction, missing-ticket rejection, title/destination scope and ticket transmission through an actual UDP socket with the same source port. These checks do not establish game acceptance, packet-loss recovery or Prelude compatibility.
 
-The test router's public TCP/UDP forwarding has not been enabled by its operator. Public gameplay tests remain pending. No production server was modified, and UNO testing remains paused.
+The test router's operator enabled public TCP/UDP forwarding on October 8. The direct public-network service check passed verified TLS, both isolated account logins, dispatcher tickets, authenticated UDP handshakes, cross-platform exclusion and account release after peer timeout. This used synthetic signed BAAS fixtures against the isolated account process; public gameplay acceptance remains pending. No production server was modified, and UNO testing remains paused.
+
+The Linux/amd64 diagnostic candidate used for that public-network check has SHA-256 `a5ef7a1738cb1d095a7535cabad5676c475444d399cfbbafe39025ab1560c06d`. It adds verification-stage and bounded UDP-event diagnostics to the preceding branch; it does not change account verification policy. With `UCH_AUTH_DIAGNOSTIC=1`, the service logs fixed verification stages and transport event names/frame sizes. UDP tracing is capped at 256 events per service run and excludes tickets, account proofs and peer addresses. Leave this opt-in diagnostic disabled for normal operation.
 
 ### Account presence integration
 

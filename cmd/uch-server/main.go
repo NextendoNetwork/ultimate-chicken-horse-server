@@ -104,6 +104,9 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		if os.Getenv("UCH_AUTH_DIAGNOSTIC") == "1" {
+			auth.ObserveVerification = func(stage string) { log.Printf("UCH Nextendo credential stage=%s", stage) }
+		}
 		b, e = backend.NewAuthenticated(relay, auth)
 	} else if c.EnableLabAuth {
 		if c.LabConsoleAuth != nil {
@@ -144,7 +147,13 @@ func main() {
 		defer conn.Close()
 		go func() {
 			defer live.Stop()
-			_, err := transport.Serve(ctx, conn, transport.Options{PublicIP: netip.MustParseAddr(c.RelayPublicIP).Unmap(), Admission: admission, MaxPeers: 16, Snapshot: live.Update, Presence: func(peers []transport.PeerPresence) { presence.update(peers, admission) }})
+			options := transport.Options{PublicIP: netip.MustParseAddr(c.RelayPublicIP).Unmap(), Admission: admission, MaxPeers: 16, Snapshot: live.Update, Presence: func(peers []transport.PeerPresence) { presence.update(peers, admission) }}
+			if os.Getenv("UCH_AUTH_DIAGNOSTIC") == "1" {
+				options.Trace = func(event transport.Event) {
+					log.Printf("UCH transport event=%s bytes=%d", event.Kind, event.FrameSize)
+				}
+			}
+			_, err := transport.Serve(ctx, conn, options)
 			if err != nil {
 				log.Print("Go transport stopped with an error")
 			}
