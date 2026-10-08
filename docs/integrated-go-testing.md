@@ -72,6 +72,11 @@ The isolated account-source fork adds optional `DASH_UCH_URL` to its presence so
 
 The running-service check passed a login and UDP connection using a fictitious account in the Switch category, rejected that same account's simultaneous login in the emulator category, and accepted it after UDP peer cleanup. The second independent account also logged in and connected. These were synthetic clients and signed BAAS fixtures against the real isolated account process; they do not represent physical consoles or production credentials.
 
+On October 8, the check was repeated successfully against the supervised service
+built from `ef38293`: certificate-verified TLS, both isolated account logins,
+dispatcher tickets, authenticated UDP, cross-platform exclusion and release after
+peer cleanup. This repeat did not add emulator or hardware gameplay acceptance.
+
 ## Live campaign record
 
 All rows below are pending for the integrated account-bound service. Previous staging results remain recorded separately.
