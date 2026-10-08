@@ -4,13 +4,30 @@ The maintainer approved moving physical-console tests to a staging container nex
 
 ## Delivered binary
 
-Linux/amd64, static Go binary from implementation revision `f107538`:
+Corrected Linux/amd64 static Go binary built from a clean detached checkout of `f1075385a9f25d37aa5d8b0d39bc83a9d6e4838d`:
 
 ```text
-613cd67b9bd6720938847b6aeedbe03dd094ce1ccd70a43154c2d34aa2c575d2  uch-server
+e78beb8a75717cd65e64467fd2ad7c5e0096e60b2f9d4b70d83d7758e08167f5  uch-server
 ```
 
-Subsequent handoff/evidence revisions change documentation and templates, not that server's Go source. Automated Go/race checks and the synthetic public-network admission check passed for this binary. Physical acceptance remains pending. The binary is supplied separately from Git source with SHA256SUMS; no credentials, test fixtures or DLLs accompany it.
+Embedded build information was checked: Go 1.27.1, Linux/amd64, CGO disabled, `vcs.revision=f1075385a9f25d37aa5d8b0d39bc83a9d6e4838d`, `vcs.modified=false`, and `-trimpath=true`. This corrected artifact has not been run in a gameplay campaign. The maintainer plans to build independently on Nextendo; that build should likewise record its exact hash and metadata before acceptance. The binary is supplied separately with SHA256SUMS and BUILDINFO.txt; no credentials, test fixtures or DLLs accompany it.
+
+**Correction to the first archive:** its hash `613cd67b9bd6720938847b6aeedbe03dd094ce1ccd70a43154c2d34aa2c575d2` was built before the changes were committed. Embedded metadata records `vcs.revision=2b8a5d15db93665b0683eab47cc1657b52f5c9da` and `vcs.modified=true`. Calling that artifact a verified build from f107538 was incorrect. Its synthetic test results describe that dirty candidate only; use the maintainer's clean build or the corrected artifact for new acceptance.
+
+## Clean build procedure
+
+Build in a detached checkout at the reviewed commit, with all outputs and caches outside the checkout. Verify `git status --porcelain` is empty before and after building. With Go 1.27.1:
+
+```sh
+git checkout --detach f1075385a9f25d37aa5d8b0d39bc83a9d6e4838d
+git status --porcelain
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -buildvcs=true -o /OUTSIDE/CHECKOUT/uch-server ./cmd/uch-server
+go version -m /OUTSIDE/CHECKOUT/uch-server
+sha256sum /OUTSIDE/CHECKOUT/uch-server
+git status --porcelain
+```
+
+Require the exact revision and `vcs.modified=false` in the output, rather than inferring provenance from a filename or source text. A matching commit does not imply identical binary hashes unless the toolchain, flags and relevant build environment also match.
 
 ## Private provisioning by the maintainer
 
