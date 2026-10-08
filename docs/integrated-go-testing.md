@@ -87,6 +87,8 @@ The October 8 Linux/amd64 candidate has SHA-256 `613cd67b9bd6720938847b6aeedbe03
 
 Physical consoles still require an authorized account-gate arrangement that accepts their actual Prelude credentials. The isolated fixture authority is not that arrangement. No production account code was changed; the scoped review patch is in `integration/nextendo-account-uch.patch`.
 
+At 18:46–18:47 UTC on October 8, the operator's physical Switch reached the public HTTPS dispatcher but remained dimmed in-game. The server rejected its login with status 403/reason 40307 at `algorithm-or-key`; no verified session or gameplay admission was established. A configuration-only audit confirmed that the active authority remained `uch-isolated-acceptance`, with two fixture signing-key mappings and the isolated loopback profile/online-check service. This is a failed authentication preflight, not a UDP transport failure or a physical gameplay pass. Provision compatible trusted public keys, exact credential scope and authorized account verification before retrying pairing; do not bypass verification to turn this result into a pass.
+
 ### Earlier integrated emulator campaigns
 
 On October 8, both Ryujinx clients passed the isolated account gate over public HTTPS after correcting the signed test fixture's identity from decimal to UCH's unpadded hexadecimal representation. Strict subject matching remains enforced; alternate representations are diagnosed but rejected.
