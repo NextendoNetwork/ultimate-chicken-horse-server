@@ -7,13 +7,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	transport "uch-server/internal/unettransport"
 	"net"
 	"net/netip"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
-	transport "uch-server/internal/unettransport"
 )
 
 func main() {
@@ -85,7 +85,7 @@ func main() {
 			cancel()
 		}
 	}
-	stats, e := transport.Serve(ctx, conn, transport.Options{PublicIP: ip, AllowedIPs: enrolled, MaxPeers: 16, Snapshot: snapshot})
+	stats, e := transport.Serve(ctx, conn, transport.Options{PublicIP: ip, AllowedIPs: enrolled, MaxPeers: 16, Snapshot: snapshot, Trace: func(event transport.Event) { json.NewEncoder(os.Stderr).Encode(event) }})
 	if e != nil || snapshotError != nil {
 		fail("staging transport or private snapshot failed")
 	}

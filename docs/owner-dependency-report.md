@@ -2,7 +2,7 @@
 
 Date: 2026-10-07. Release status: **not ready for a DLL-free VPS deployment**.
 
-Latest owner review reported by the operator accepts the login source (open enrollment, online-check and lab authentication disabled) and the emulator/console pairing results. The additional physical Switch/Switch match is now operator-confirmed and recorded in [acceptance](switch-switch-acceptance.md). The remaining transport question is the DLL-specific runtime terms or completion of the independent adapter.
+Latest owner review reported by the operator accepts the login source (open enrollment, online-check and lab authentication disabled) and the emulator/console pairing results. The earlier physical Switch/Switch confirmation is historical native-worker evidence, recorded in [acceptance](switch-switch-acceptance.md). The maintainer will repeat that final pairing with the independent Go adapter. Console/emulator gameplay now passes on the Go-only path; transport release gates remain below.
 
 ## Where the tested DLLs came from
 
@@ -25,15 +25,15 @@ No Unity DLL or recovered implementation is committed to the Go library. Private
 | Component | Present | Remaining before release |
 | --- | --- | --- |
 | Go HTTP control plane | Title envelopes and account verification/gate code with contract tests | Acceptance against the deployed Nextendo account service and presence rules |
-| Go application router | Room membership, routing and isolation tests | Connect it to authenticated gameplay transport events |
-| Go wire adapter | Large/grouped UCH records, ordered delivery, sliding ACKs, channel-byte wrap, multi-peer staging routing and synthetic reference-client room exchange pass | Full reliable-ID epoch wrap, production admission/binding, impairment limits and renewed real-game acceptance |
-| Native gameplay worker | Used in the successful mixed Go-API game campaign | Remove it from the release and repeat the campaign against the replacement |
+| Go application router | Room membership, routing and isolation tests | Production transport/account binding; staging routing is connected |
+| Go wire adapter | Large/grouped UCH records, ordered delivery, sliding ACKs, channel-byte wrap, multi-peer staging routing and synthetic reference-client room exchange pass | Full reliable-ID epoch wrap, production admission/binding, impairment limits and completed release acceptance |
+| Native gameplay worker | Historical reference; absent from the selected Go-only gameplay path | Keep it excluded from the release; its runtime eligibility remains unresolved |
 
-The Go API campaign is not evidence of a DLL-free transport: the native worker still handled gameplay. The required physical-console campaign includes Switch/Ryujinx and Switch/Citron in both host directions, and Switch/Switch, with discovery, gameplay, leave/rejoin and measured AFK/recovery. Each acceptance record must identify the actual API and transport revision. See [integration](nextendo-integration.md) and [migration](go-migration.md).
+The historical Go API campaign used native gameplay. The subsequent [Go-only campaign](go-only-acceptance.md) selects an independent Go UDP adapter and is separate evidence. The required physical-console campaign includes Switch/Ryujinx and Switch/Citron in both host directions, and Switch/Switch, with discovery, gameplay, leave/rejoin and measured AFK/recovery. Each acceptance record must identify the actual API and transport revision. See [integration](nextendo-integration.md) and [migration](go-migration.md).
 
 ## Latest implementation and license evidence
 
-The [Go adapter](go-transport-adapter.md) is imported from personal revision c55f0dfcddf72ee056eef6a5b8c6c2cf742e0a6d and can supply the Go API with room-state snapshots through a [separate staging command](go-staging.md). The first physical Switch-host/Citron-guest pairing with the Go adapter is now operator-confirmed: both entered and played. See [Go-only acceptance](go-only-acceptance.md) for executable hashes and evidence limits. Hosting reversal and the rest of the campaign remain pending. The exact short LICENSE.txt from the official April ZIP is preserved in [the extracted notice](licenses/unet-official-2018-notice.txt). It links to UCL without embedding a versioned full license and does not resolve DLL runtime eligibility.
+The [Go adapter](go-transport-adapter.md) is imported from personal revision c55f0dfcddf72ee056eef6a5b8c6c2cf742e0a6d and can supply the Go API with room-state snapshots through a [separate staging command](go-staging.md). The first physical Switch-host/Citron-guest pairing with the Go adapter is now operator-confirmed: both entered and played. See [Go-only acceptance](go-only-acceptance.md) for executable hashes and evidence limits. Switch/Citron and Switch/Ryujinx now pass both host directions with gameplay; emulator-host reentry and five minutes AFK also pass by operator report. The first Citron reversal failed before a successful diagnostic retry; its cause remains unproven. Final physical Switch/Switch against this adapter remains for the maintainer. The exact short LICENSE.txt from the official April ZIP is preserved in [the extracted notice](licenses/unet-official-2018-notice.txt). It links to UCL without embedding a versioned full license and does not resolve DLL runtime eligibility.
 
 ## Packaging decision
 

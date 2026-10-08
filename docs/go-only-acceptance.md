@@ -19,8 +19,26 @@ Recorded 2026-10-07, America/Lima. Evidence: operator confirmation, private run/
 
 The Go API and Go adapter do not load Unity DLLs. The adapter snapshot showed one registered host during this campaign. The user's confirmation establishes this pairing's functional result, not all release gates. No addresses, account identifiers or keys are published.
 
-## Pending campaign
+## Subsequent console/emulator campaign
 
-Citron-host/Switch-guest reversal was attempted and the operator reported Disconnected. Host registration and successful HTTP responses were observed, but joining/gameplay in this direction remain unresolved; a protocol diagnostic run is being prepared. Leave/rejoin, measured AFK and network recovery are pending. The Ryujinx pairings and maintainer's final physical Switch/Switch test must also be repeated against the Go adapter. Earlier native-worker successes do not automatically transfer to this transport.
+The following results are operator-confirmed against the same Go HTTP configuration and dedicated Go gameplay port. The diagnostic adapter executable SHA-256 is `e14050517240a46327210f81265dcb05061c607d635c7e1a2caac6347d861919`; it was built with structural tracing after the first adapter build. The API executable hash and mixed private test authentication mode above remain unchanged.
 
-The adapter is still bounded staging: no full 16-bit reliable-ID epoch wrap or production transport/account binding is claimed. See [adapter evidence](go-transport-adapter.md) and [staging scope](go-staging.md).
+| Pairing / scenario | Operator-confirmed result |
+| --- | --- |
+| Citron host / physical Switch guest | Both entered and could play |
+| Citron host: Switch leaves and rejoins | Passed |
+| Citron host: both idle in the menu for five minutes | Both remained in the room |
+| Physical Switch host / Ryujinx guest | Both joined and played |
+| Ryujinx host / physical Switch guest | Both joined and played |
+| Ryujinx host: Switch leaves and rejoins | Passed |
+| Ryujinx host: both idle in the menu for five minutes | Both remained in the room |
+
+The first Citron-host/Switch-guest attempt returned Disconnected. A retry after restarting the Go adapter with diagnostic logging passed, followed by gameplay, reentry and AFK. The cause of that first failure has not been established; these results do not demonstrate a targeted repair. The five-minute intervals are operator reports, not independently timed observations. Runtime hashes identify the tested binaries; subsequent source changes are not silently treated as tested binaries.
+
+Structural relay records show host registration and guest joins through the Go adapter. Their lifecycle events also include room exits and emulator closure during role changes; these must not be presented as confirmed AFK failures. The original worker remained on a different port for private synthetic reference work, outside the selected game allocation/state path.
+
+## Pending campaign and release gates
+
+A final test between two physical Switch consoles against this independent Go adapter remains for the Nextendo maintainer. Switch/emulator results cannot substitute for that test. Earlier native-worker confirmations are historical evidence only. Extended network impairment/recovery and production account-service acceptance are also pending.
+
+The adapter is still bounded staging: no full 16-bit reliable-ID epoch wrap or production transport/account binding is claimed. See [adapter evidence](go-transport-adapter.md) and [staging scope](go-staging.md). These successes remove the DLL dependency from the tested game path; they do not approve the earlier DLL worker for deployment or make this staging package VPS-ready.

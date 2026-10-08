@@ -8,18 +8,27 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	relay "uch-server/internal/relayrouter"
+	wire "uch-server/internal/unetwire"
 	"net"
 	"net/netip"
 	"time"
-	relay "uch-server/internal/relayrouter"
-	wire "uch-server/internal/unetwire"
 )
+
+type Event struct {
+	Kind      string
+	Peer      uint16
+	FrameSize int
+	Detail    string
+}
 
 type Options struct {
 	PublicIP   netip.Addr
 	AllowedIPs map[netip.Addr]bool
 	MaxPeers   int
 	Snapshot   func([]netip.AddrPort)
+	Trace      func(Event)
 }
 type Stats struct{ Connected, ReceivedMessages, SentMessages, Retransmissions, RejectedFrames, Disconnected, UnknownPeerFrames uint64 }
 type pending struct {
@@ -45,6 +54,17 @@ type peer struct {
 // Peers must reconnect before the unmeasured 16-bit reliable-ID epoch wraps.
 func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 	var stats Stats
+	traceRemaining := 256
+	trace := func(kind string, p *peer, size int, detail string) {
+		if o.Trace != nil && traceRemaining > 0 {
+			traceRemaining--
+			var id uint16
+			if p != nil {
+				id = p.id
+			}
+			o.Trace(Event{kind, id, size, detail})
+		}
+	}
 	if conn == nil || !o.PublicIP.Is4() || o.PublicIP.IsUnspecified() || len(o.AllowedIPs) == 0 {
 		return stats, errors.New("explicit IPv4 endpoint enrollment required")
 	}
@@ -90,6 +110,7 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 		delete(peers, p.id)
 		delete(addresses, p.address)
 		stats.Disconnected++
+		trace("disconnect", p, 0, fmt.Sprintf("notify=%v pending=%d queue=%d", notify, len(p.pending), len(p.queue)))
 		if notify {
 			payload := make([]byte, 5)
 			binary.LittleEndian.PutUint32(payload, wire.ObservedUCHVersion)
@@ -105,6 +126,7 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 				continue
 			}
 			if a.Disconnect {
+				trace("router-disconnect", p, 0, "application-router")
 				drop(p, true)
 				continue
 			}
@@ -169,6 +191,7 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 		}
 		for _, p := range peers {
 			if now.Sub(p.lastSeen) >= 4*time.Second {
+				trace("timeout", p, 0, "no-valid-packet")
 				drop(p, true)
 				continue
 			}
@@ -207,7 +230,7 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 			return stats, e
 		}
 		from = netip.AddrPortFrom(from.Addr().Unmap(), from.Port())
-		if !o.AllowedIPs[from.Addr()] || n > wire.UCHPacketSize {
+		if !o.AllowedIPs[from.Addr()] || n < 2 || n > wire.UCHPacketSize {
 			stats.RejectedFrames++
 			continue
 		}
@@ -215,6 +238,7 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 		p := addresses[from]
 		if request, e := wire.ParseConnectRequest(b); e == nil {
 			if request.Version != wire.ObservedUCHVersion || request.ConfigurationChecksum != wire.ObservedUCHChecksum || request.Header.SourceConnection == 0 || request.Header.DestinationConnection != 0 {
+				trace("connect-reject", p, n, fmt.Sprintf("version=%d checksum=%d source=%d destination=%d", request.Version, request.ConfigurationChecksum, request.Header.SourceConnection, request.Header.DestinationConnection))
 				stats.RejectedFrames++
 				continue
 			}
@@ -231,7 +255,9 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 				peers[p.id] = p
 				addresses[from] = p
 				stats.Connected++
+				trace("connect", p, n, "accepted-profile")
 			} else if p.remote.Tag != request.Header.Tag || p.remote.SourceConnection != request.Header.SourceConnection {
+				trace("connect-identity-changed", p, n, "existing endpoint requires disconnect or timeout")
 				stats.RejectedFrames++
 				continue
 			}
@@ -239,12 +265,19 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 			continue
 		}
 		if p == nil {
+			trace("unknown-peer", nil, n, fmt.Sprintf("systemFrame=%v thirdByte=%d", b[0] == 0 && b[1] == 0, func() byte {
+				if len(b) > 2 {
+					return b[2]
+				}
+				return 0
+			}()))
 			stats.UnknownPeerFrames++
 			stats.RejectedFrames++
 			continue
 		}
 		if c, e := wire.ParseObservedControl(b); e == nil {
 			if c.Header.SourceConnection != p.remote.SourceConnection || c.Header.DestinationConnection != p.id || c.Header.Tag != p.remote.Tag || c.RemoteTag != p.tag {
+				trace("control-reject", p, n, "connection or tag mismatch")
 				stats.RejectedFrames++
 				continue
 			}
@@ -258,6 +291,10 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 		}
 		packet, e := wire.ParseObservedData(b)
 		if e != nil || packet.Destination != p.id || packet.Tag != p.remote.Tag {
+			trace("data-reject", p, n, fmt.Sprintf("parse=%v destinationMatch=%v tagMatch=%v", e, packet.Destination == p.id, packet.Tag == p.remote.Tag))
+			if system, err := wire.ParseSystemPacket(b); err == nil {
+				trace("system-unhandled", p, n, fmt.Sprintf("kind=%d source=%d destination=%d payloadBytes=%d", system.Header.Kind, system.Header.SourceConnection, system.Header.DestinationConnection, len(system.Payload)))
+			}
 			stats.RejectedFrames++
 			continue
 		}
@@ -270,6 +307,7 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 		for _, record := range packet.Records {
 			messages, _, e := p.receiver.Accept(record)
 			if e != nil {
+				trace("record-reject", p, n, e.Error())
 				stats.RejectedFrames++
 				valid = false
 				break
@@ -279,6 +317,9 @@ func Serve(ctx context.Context, conn *net.UDPConn, o Options) (Stats, error) {
 			}
 			for _, m := range messages {
 				stats.ReceivedMessages++
+				if m.Channel == 3 && len(m.Payload) > 0 && m.Payload[len(m.Payload)-1] <= 1 {
+					trace("application-control", p, len(m.Payload), fmt.Sprintf("op=%d sequence=%d reliableID=%d", m.Payload[len(m.Payload)-1], m.ChannelSequence, m.ReliableID))
+				}
 				actions(router.Handle(relay.Peer(p.id), from, m.Channel, m.Payload))
 				if peers[p.id] != p {
 					break

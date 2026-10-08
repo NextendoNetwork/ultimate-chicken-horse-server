@@ -11,15 +11,15 @@ Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328
 | TLS API, authentication, lobby lifecycle and regional allocation | Go; package tests pass |
 | Nextendo production login | Go RS256/account-proof verification, open account enrollment and required `/internal/online-check`; deployed-service acceptance pending |
 | UCH application relay routing | Connected to the experimental Go adapter under `internal/unettransport`; synthetic host/guest routing passes |
-| UNET UDP handshake, reliable delivery and keepalive | Experimental Go adapter handles the measured UCH profile; real-game acceptance and production gates remain pending |
+| UNET UDP handshake, reliable delivery and keepalive | Experimental Go adapter handles the measured UCH profile; console/emulator gameplay passes in both host directions; production gates remain pending |
 
 The [multi-peer Go adapter](docs/go-transport-adapter.md) handles large and grouped records, ordered delivery, channel-byte sequence wrap, retransmission and disconnect cleanup. Two private native reference clients joined one Go-only room and exchanged a large message and targeted reply. This is synthetic interoperability, not real-game acceptance or approval for the VPS.
 
-**Production release remains held.** The Go API can read room-state snapshots from `cmd/unet-staging` for a DLL-free staging path. The new adapter still lacks full reliable-ID epoch wrap, production transport/account binding and completed real-game acceptance. The earlier original-worker path depends on three private Unity-related DLLs whose runtime terms remain unresolved. See [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
+**Production release remains held.** The Go API can read room-state snapshots from `cmd/unet-staging` for a DLL-free staging path. The new adapter still lacks full reliable-ID epoch wrap, production transport/account binding and completed release acceptance. The earlier original-worker path depends on three private Unity-related DLLs whose runtime terms remain unresolved. See [Go staging](docs/go-staging.md), [imported components](docs/imported-go-components.md) and [deployment decision](docs/native-deployment-decision.md).
 
-### First game test with the new Go transport
+### Game tests with the new Go transport
 
-Physical Switch-host / Citron-guest: both entered and played, operator-confirmed on 2026-10-07. See [Go-only acceptance](docs/go-only-acceptance.md) for runtime hashes, selected transport and limits. The remaining platform/recovery campaign and production gates are pending.
+Physical Switch / Citron and physical Switch / Ryujinx: both host directions entered and played, operator-confirmed on 2026-10-07. Emulator-host rooms also passed Switch reentry and five minutes AFK by operator report. See [Go-only acceptance](docs/go-only-acceptance.md) for runtime hashes, the first failed reversal and evidence limits. Final physical Switch/Switch, recovery and production gates remain pending.
 
 ### Earlier manual game tests against the Go control plane
 

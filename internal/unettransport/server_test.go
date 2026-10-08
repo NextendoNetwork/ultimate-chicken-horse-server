@@ -5,11 +5,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	wire "uch-server/internal/unetwire"
 	"net"
 	"net/netip"
 	"testing"
 	"time"
-	wire "uch-server/internal/unetwire"
 )
 
 type synthetic struct {
