@@ -32,7 +32,8 @@ func TestAuthenticatedRelayUsesOwnerAcrossNAT(t *testing.T) {
 	owners := map[netip.AddrPort]string{host: "123", guest: "456"}
 	r.UpdateAuthenticated(owners)
 	delete(owners, host) // Caller mutation cannot alter the published snapshot.
-	data := Object{"ownerID": ProfileID("123"), "externalIPAddress": "10.0.0.5", "port": 17778}
+	// The advertised endpoint is stale; resolve by verified owner instead.
+	data := Object{"ownerID": ProfileID("123"), "externalIPAddress": "198.51.100.5", "port": 17778}
 	resolved, ok := r.Resolve(data)
 	if !ok || resolved["externalIPAddress"] != host.Addr().String() || resolved["port"] != int64(host.Port()) {
 		t.Fatal("NAT endpoint was not resolved from authenticated room ownership")

@@ -4,6 +4,8 @@ Go implementation of the observed UCH authentication, lobby and relay-allocation
 
 Target: Switch application `0100FCF002A58000`, update **1.13.13.765** (`v1507328`). This game uses brainCloud-compatible RPC scripts and MLAPI/UNET gameplay transport; it is separate from the NPLN Classics servers.
 
+For the reported deployed-binary/source mismatch, follow [deployed source reconciliation](docs/deployed-source-reconciliation.md). The manual candidate workflow records clean source revision, binary hash and build metadata; it does not deploy a service. The actual Nextendo executable's provenance still needs maintainer confirmation.
+
 ## Go migration status (2026-10-08)
 
 | Component | Current implementation |
