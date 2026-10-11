@@ -7,7 +7,8 @@ import (
 	"time"
 )
 
-// FileRelay observes the existing UNET worker; it does not implement UNET itself.
+// FileRelay observes the configured transport's private room-state snapshot.
+// Either the historical native worker or the experimental Go adapter can write it.
 // Only enrolled endpoint IPs can become room destinations.
 type FileRelay struct {
 	Path       string

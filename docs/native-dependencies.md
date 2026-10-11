@@ -43,7 +43,7 @@ None of the three April `lib/` files matches the tested inputs. A mismatch does 
 
 The tested and June official `UNETServerDLL.dll` differ at only 24 byte positions. All differences are within parsed PE build metadata: the COFF timestamp (offset `0x110`, four bytes), three debug-directory timestamps (`0x64604`, `0x64620`, `0x6463c`, four bytes each), and the CodeView RSDS GUID (`0x65110`, sixteen bytes). Masking only those fields produces byte-identical files with SHA-256 `320ea479fa96df78d6cf0264cd4f84b1b718ff83d45ae2be48e1966a5ae21f61`. Their `.text` section hashes both equal `88844228b458139f340ce29595be3b66ffa264d2c344306dabe73d963d127c4a`.
 
-This supports the inference that their native code contents match while build metadata differs. It does not turn them into identical original files or establish permission. Reproduce with `python scripts/compare-unet-pe.py TESTED_DLL OFFICIAL_JUNE_ZIP`; the script reads files without executing them. `UnityEngine.dll` still lacks an exact official build match.
+This supports the inference that their native code contents match while build metadata differs. It does not turn them into identical original files or establish permission. Reproduce with `go run ./cmd/compare-unet-pe TESTED_DLL OFFICIAL_JUNE_ZIP`; the script reads files without executing them. `UnityEngine.dll` still lacks an exact official build match.
 
 ## License versions and scope
 

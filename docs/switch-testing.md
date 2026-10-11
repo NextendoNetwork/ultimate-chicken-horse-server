@@ -1,4 +1,20 @@
-# Physical Switch test prerequisites
+# Physical Switch tests
+
+## Current integrated Go candidate (2026-10-08)
+
+The current candidate enables an optional [stock Switch admission path](stock-switch-compatibility.md) without a game UDP patch or additional Prelude interception. The public-network synthetic check passed; physical console acceptance with this revision remains pending. Previous gameplay campaigns below do not satisfy this gate. See [integrated testing](integrated-go-testing.md) for the current runtime hash and emulator results.
+
+The laboratory must accept actual console credentials through an authorized account authority before pairing. Hosts only route the endpoints; they do not provision that authority. Keep signature verification, account proof verification and `/internal/online-check` enabled. Never transfer production internal keys to a third-party VPS without explicit authorization.
+
+Record UCH 1.13.13.765, the reported Atmosphere/firmware versions, Prelude build and the running service hash. For two consoles sharing an IP, obtain the first UDP binding before logging in the second. Test Switch/Ryujinx, Switch/Citron and physical Switch/Switch with both host directions, gameplay, leave/rejoin, five minutes AFK and room recreation. Record failures and server admission stages without credentials or personal addresses. Update evidence only after each observed result.
+
+## Earlier Go control-plane campaign (2026-10-07)
+
+Ryujinx host/Switch guest and Citron/Switch in both host directions are confirmed against the Go HTTP service and legacy native worker. Switch/Switch is pending. Tests used mixed acceptance authentication, not production online-check. Personal addresses remain in ignored runtime files. When moving networks, update private routing and enrolled peers. Restarting the Go service invalidates its in-memory game sessions; fully close/reopen UCH to obtain a fresh login. See [test status](test-status.md).
+
+The remainder records historical prerequisites and the original Python campaign; it must not be used to claim an independent Go wire transport was tested.
+
+## Historical prerequisites
 
 The owner will use the same Prelude/Atmosphere Switch as earlier tests and is installing UCH. Its current IP, installed version and game Build ID remain to be confirmed.
 

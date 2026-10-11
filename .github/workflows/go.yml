@@ -5,10 +5,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 scripts/check-address-privacy.py
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - run: go run ./cmd/check-address-privacy
       - run: go test ./... -timeout 60s
       - run: go vet ./...
       - run: go build ./cmd/uch-server

@@ -10,7 +10,9 @@ import (
 	"errors"
 	"io"
 	"math/big"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -20,21 +22,30 @@ import (
 // NextendoConfig enrolls an operator-trusted public JWKS and exact BAAS scope.
 // Token jku/x5u values never select a network destination or signing key.
 type NextendoConfig struct {
-	JWKSPath string `json:"jwksPath"`
-	Issuer   string `json:"issuer"`
-	Audience string `json:"audience"`
+	JWKSPath           string            `json:"jwksPath"`
+	Issuer             string            `json:"issuer"`
+	Audience           string            `json:"audience"`
+	AllowAllAccounts   bool              `json:"allowAllAccounts"`
+	OnlineCheckURL     string            `json:"onlineCheckURL"`
+	InternalKeyEnv     string            `json:"internalKeyEnv"`
+	DeviceKindsByKeyID map[string]string `json:"deviceKindsByKeyId"`
+	ProfileURL         string            `json:"profileURL"`
 }
 
 type NextendoAuth struct {
-	keys             map[string]*rsa.PublicKey
-	issuer, audience string
-	allowed          map[string]bool
-	now              func() time.Time
-	profile          func(string) (string, error)
+	// ObserveVerification receives fixed stage labels only, never credential data.
+	ObserveVerification func(string)
+	keys                map[string]*rsa.PublicKey
+	issuer, audience    string
+	allowed             map[string]bool
+	now                 func() time.Time
+	profile             func(string) (string, error)
+	onlineCheck         func(uint64, string, string) bool
+	deviceKinds         map[string]string
 }
 
 func NewNextendoAuth(c NextendoConfig, subjects []string) (*NextendoAuth, error) {
-	if c.Issuer == "" || c.Audience == "" || len(subjects) == 0 {
+	if c.Issuer == "" || c.Audience == "" || (!c.AllowAllAccounts && len(subjects) == 0) || (c.AllowAllAccounts && len(subjects) != 0) {
 		return nil, errors.New("explicit Nextendo scope and enrolled accounts required")
 	}
 	raw, err := os.ReadFile(c.JWKSPath)
@@ -48,6 +59,15 @@ func NewNextendoAuth(c NextendoConfig, subjects []string) (*NextendoAuth, error)
 		return nil, errors.New("invalid public JWKS")
 	}
 	a := &NextendoAuth{keys: map[string]*rsa.PublicKey{}, issuer: c.Issuer, audience: c.Audience, allowed: map[string]bool{}, now: time.Now, profile: nextendoProfile}
+	if c.ProfileURL != "" {
+		u, err := url.Parse(c.ProfileURL)
+		ip := net.ParseIP(uHostname(u))
+		if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "/api/profile" ||
+			(u.Scheme != "https" && !(u.Scheme == "http" && ip != nil && ip.IsLoopback())) {
+			return nil, errors.New("invalid trusted account profile URL")
+		}
+		a.profile = profileClient(c.ProfileURL)
+	}
 	for _, k := range set.Keys {
 		if k.Kty != "RSA" || k.Use != "sig" || k.Alg != "RS256" {
 			continue
@@ -70,34 +90,119 @@ func NewNextendoAuth(c NextendoConfig, subjects []string) (*NextendoAuth, error)
 		}
 		a.allowed[s] = true
 	}
+	if c.AllowAllAccounts {
+		a.allowed = nil // Account authority and online gate decide eligibility.
+	}
+	if c.OnlineCheckURL != "" {
+		u, err := url.Parse(c.OnlineCheckURL)
+		ip := net.ParseIP(uHostname(u))
+		if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "/internal/online-check" ||
+			(u.Scheme != "https" && !(u.Scheme == "http" && ip != nil && ip.IsLoopback())) {
+			return nil, errors.New("online-check requires HTTPS or literal loopback HTTP and the exact internal route")
+		}
+		secret := os.Getenv(c.InternalKeyEnv)
+		if c.InternalKeyEnv == "" || len(secret) < 32 || strings.ContainsAny(secret, "\r\n") || len(c.DeviceKindsByKeyID) == 0 {
+			return nil, errors.New("online-check requires a private internal key and trusted signing-key device mapping")
+		}
+		a.deviceKinds = map[string]string{}
+		for kid, kind := range c.DeviceKindsByKeyID {
+			if a.keys[kid] == nil || (kind != "switch" && kind != "ryujinx") {
+				return nil, errors.New("invalid trusted device-kind mapping")
+			}
+			a.deviceKinds[kid] = kind
+		}
+		a.onlineCheck = onlineCheckClient(c.OnlineCheckURL, secret)
+	}
 	return a, nil
 }
 
-func nextendoProfile(proof string) (string, error) {
+func uHostname(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	return u.Hostname()
+}
+
+// The route and secret come only from private operator configuration.
+// Neither a credential nor forwarding headers can choose this destination.
+func onlineCheckClient(endpoint, secret string) func(uint64, string, string) bool {
 	client := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	request, _ := http.NewRequest("GET", "https://nextendo.network/api/profile", nil)
-	request.Header.Set("Authorization", "Bearer "+proof)
-	response, err := client.Do(request)
-	if err != nil {
-		return "", errors.New("account verification unavailable")
+	return func(pid uint64, kind, ip string) bool {
+		if pid == 0 || net.ParseIP(ip) == nil || (kind != "switch" && kind != "ryujinx") {
+			return false
+		}
+		body, _ := json.Marshal(struct {
+			PID  uint64 `json:"pid"`
+			Kind string `json:"kind"`
+			IP   string `json:"ip"`
+		}{pid, kind, ip})
+		req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
+		if err != nil {
+			return false
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Internal-Key", secret)
+		res, err := client.Do(req)
+		if err != nil {
+			return false
+		}
+		defer res.Body.Close()
+		raw, err := io.ReadAll(io.LimitReader(res.Body, 65537))
+		if err != nil || res.StatusCode != 200 || len(raw) > 65536 {
+			return false
+		}
+		var result struct {
+			Allow     *bool  `json:"allow"`
+			SessionID string `json:"session_id"`
+		}
+		return json.Unmarshal(raw, &result) == nil && result.Allow != nil && *result.Allow && result.SessionID != ""
 	}
-	defer response.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(response.Body, 65537))
-	if err != nil || response.StatusCode != 200 || len(raw) > 65536 {
-		return "", errors.New("account proof rejected")
+}
+
+func nextendoProfile(proof string) (string, error) {
+	return profileClient("https://nextendo.network/api/profile")(proof)
+}
+
+func profileClient(endpoint string) func(string) (string, error) {
+	return func(proof string) (string, error) {
+		client := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		request, err := http.NewRequest("GET", endpoint, nil)
+		if err != nil {
+			return "", errors.New("invalid account profile URL")
+		}
+		request.Header.Set("Authorization", "Bearer "+proof)
+		response, err := client.Do(request)
+		if err != nil {
+			return "", errors.New("account verification unavailable")
+		}
+		defer response.Body.Close()
+		raw, err := io.ReadAll(io.LimitReader(response.Body, 65537))
+		if err != nil || response.StatusCode != 200 || len(raw) > 65536 {
+			return "", errors.New("account proof rejected")
+		}
+		var result struct {
+			Username string `json:"username"`
+		}
+		if json.Unmarshal(raw, &result) != nil || result.Username == "" {
+			return "", errors.New("invalid account response")
+		}
+		return result.Username, nil
 	}
-	var result struct {
-		Username string `json:"username"`
-	}
-	if json.Unmarshal(raw, &result) != nil || result.Username == "" {
-		return "", errors.New("invalid account response")
-	}
-	return result.Username, nil
 }
 
 // Verify returns the account PID only after checking the BAAS signature, scope,
 // external identity and the enclosed nx2 proof against the account authority.
 func (a *NextendoAuth) Verify(token, external string) (string, bool) {
+	return a.VerifyForPeer(token, external, "")
+}
+
+func (a *NextendoAuth) VerifyForPeer(token, external, peerIP string) (string, bool) {
+	stage := "framing"
+	defer func() {
+		if a.ObserveVerification != nil {
+			a.ObserveVerification(stage)
+		}
+	}()
 	if len(token) == 0 || len(token) > 4096 || len(external) == 0 || len(external) > 128 {
 		return "", false
 	}
@@ -110,6 +215,7 @@ func (a *NextendoAuth) Verify(token, external string) (string, bool) {
 		return "", false
 	}
 	headerRaw, e := base64.RawURLEncoding.DecodeString(parts[0])
+	stage = "algorithm-or-key"
 	if e != nil {
 		return "", false
 	}
@@ -122,6 +228,7 @@ func (a *NextendoAuth) Verify(token, external string) (string, bool) {
 		return "", false
 	}
 	signature, e := base64.RawURLEncoding.DecodeString(parts[2])
+	stage = "signature"
 	if e != nil {
 		return "", false
 	}
@@ -130,6 +237,7 @@ func (a *NextendoAuth) Verify(token, external string) (string, bool) {
 		return "", false
 	}
 	claimsRaw, e := base64.RawURLEncoding.DecodeString(parts[1])
+	stage = "scope-or-time"
 	if e != nil {
 		return "", false
 	}
@@ -142,9 +250,23 @@ func (a *NextendoAuth) Verify(token, external string) (string, bool) {
 	exp, ok := number(claims["exp"])
 	iat, issued := number(claims["iat"])
 	now := a.now().Unix()
-	if !ok || !issued || now >= exp || iat > now+30 || str(claims["iss"]) != a.issuer || str(claims["aud"]) != a.audience || !strings.EqualFold(str(claims["sub"]), external) {
+	if !ok || !issued || now >= exp || iat > now+30 || str(claims["iss"]) != a.issuer || str(claims["aud"]) != a.audience {
 		return "", false
 	}
+	stage = "external-identity"
+	if !strings.EqualFold(str(claims["sub"]), external) {
+		// Identify fixture formatting mistakes without accepting aliases or logging IDs.
+		if id, err := strconv.ParseUint(str(claims["sub"]), 10, 64); err == nil {
+			hex := strconv.FormatUint(id, 16)
+			if strings.EqualFold(hex, external) {
+				stage = "external-identity-hex-unpadded"
+			} else if strings.EqualFold(strings.Repeat("0", 16-len(hex))+hex, external) {
+				stage = "external-identity-hex-padded"
+			}
+		}
+		return "", false
+	}
+	stage = "scope-or-time"
 	if v, exists := claims["nbf"]; exists {
 		n, valid := number(v)
 		if !valid || n > now+30 {
@@ -155,6 +277,7 @@ func (a *NextendoAuth) Verify(token, external string) (string, bool) {
 		return "", false
 	}
 	proof := str(claims["nnex"])
+	stage = "proof-or-enrollment"
 	if len(proof) > 2048 || !strings.HasPrefix(proof, "nx2.") {
 		return "", false
 	}
@@ -167,7 +290,11 @@ func (a *NextendoAuth) Verify(token, external string) (string, bool) {
 		return "", false
 	}
 	identity := strings.SplitN(string(raw), ".", 3)
-	if len(identity) != 3 || !a.allowed[identity[0]] {
+	if len(identity) != 3 || (a.allowed != nil && !a.allowed[identity[0]]) {
+		return "", false
+	}
+	accountPID, err := strconv.ParseUint(identity[0], 10, 64)
+	if err != nil || accountPID == 0 || strconv.FormatUint(accountPID, 10) != identity[0] {
 		return "", false
 	}
 	expiry, e := strconv.ParseInt(identity[2], 10, 64)
@@ -175,22 +302,61 @@ func (a *NextendoAuth) Verify(token, external string) (string, bool) {
 		return "", false
 	}
 	username, e := a.profile(proof)
+	stage = "account-authority"
 	if e != nil || username != identity[1] {
 		return "", false
 	}
+	if a.onlineCheck != nil {
+		stage = "online-gate"
+		if !a.onlineCheck(accountPID, a.deviceKinds[header.Kid], peerIP) {
+			return "", false
+		}
+	}
+	stage = "verified"
 	return identity[0], true
 }
 
-// NewAuthenticated disables all lab HMAC tokens. The account allowlist remains
-// explicit for staging; enrolling production accounts is an operator policy.
-func NewAuthenticated(subjects []string, relay Relay, auth *NextendoAuth) (*Backend, error) {
+// VerifySessionForPeer adds the device category from the already verified
+// signing key, never a client-supplied platform label.
+func (a *NextendoAuth) VerifySessionForPeer(token, external, peerIP string) (string, string, bool) {
+	account, ok := a.VerifyForPeer(token, external, peerIP)
+	if !ok {
+		return "", "", false
+	}
+	parts := strings.Split(strings.TrimRight(token, "\x00"), ".")
+	raw, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return "", "", false
+	}
+	var header struct {
+		Kid string `json:"kid"`
+	}
+	if json.Unmarshal(raw, &header) != nil {
+		return "", "", false
+	}
+	return account, a.deviceKinds[header.Kid], true
+}
+
+// NewAuthenticated requires the maintained account gate and disables lab tokens.
+func NewAuthenticated(relay Relay, auth *NextendoAuth) (*Backend, error) {
+	if auth == nil || auth.onlineCheck == nil || relay == nil {
+		return nil, errors.New("Nextendo verifier, online-check gate and relay required")
+	}
+	b := &Backend{nextendo: auth, now: time.Now, relay: relay, sessions: map[string]session{}, profiles: map[string]*profile{}, rooms: map[string]*room{}}
+	return b, nil
+}
+
+// NewLabWithConsole is exclusively for mixed emulator/console acceptance tests.
+// Console JWTs use the strict Nextendo verifier; local HMAC tokens remain lab-only.
+// Production must use NewAuthenticated, which never accepts the lab credentials.
+func NewLabWithConsole(key []byte, subjects []string, relay Relay, auth *NextendoAuth) (*Backend, error) {
 	if auth == nil {
-		return nil, errors.New("Nextendo verifier required")
+		return nil, errors.New("strict console verifier required for mixed lab tests")
 	}
-	b, e := New(make([]byte, 32), subjects, relay, nil)
-	if e != nil {
-		return nil, e
+	b, err := New(key, subjects, relay, nil)
+	if err != nil {
+		return nil, err
 	}
-	b.nextendo = auth
+	b.labConsole = auth
 	return b, nil
 }

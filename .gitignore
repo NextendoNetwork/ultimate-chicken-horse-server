@@ -5,5 +5,8 @@
 *.pem
 *.nsp
 *.nca
+*.dll
+*.so
+*.dylib
 transport/unet-worker/bin/
 transport/unet-worker/obj/

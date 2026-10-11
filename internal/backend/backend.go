@@ -27,10 +27,15 @@ type Relay interface {
 	Resolve(Object) (Object, bool)
 }
 type session struct {
-	profile string
-	expires time.Time
+	profile    string
+	expires    time.Time
+	peerIP     string
+	deviceKind string
 }
-type profile struct{ created, last, count int64 }
+type profile struct {
+	created, last, count int64
+	accountPID           string
+}
 type room struct {
 	data         Object
 	expires      time.Time
@@ -39,15 +44,16 @@ type room struct {
 	reservations map[string]time.Time
 }
 type Backend struct {
-	nextendo *NextendoAuth
-	mu       sync.Mutex
-	key      []byte
-	allowed  map[string]bool
-	now      func() time.Time
-	relay    Relay
-	sessions map[string]session
-	profiles map[string]*profile
-	rooms    map[string]*room
+	nextendo   *NextendoAuth
+	labConsole *NextendoAuth
+	mu         sync.Mutex
+	key        []byte
+	allowed    map[string]bool
+	now        func() time.Time
+	relay      Relay
+	sessions   map[string]session
+	profiles   map[string]*profile
+	rooms      map[string]*room
 }
 
 func New(key []byte, subjects []string, relay Relay, clock func() time.Time) (*Backend, error) {
@@ -193,8 +199,22 @@ func (b *Backend) expire() {
 			}
 		}
 	}
+	active := make(map[string]bool, len(b.sessions))
+	for _, s := range b.sessions {
+		active[s.profile] = true
+	}
+	for id, p := range b.profiles {
+		if !active[id] && now.UnixMilli()-p.last >= int64((24*time.Hour)/time.Millisecond) {
+			delete(b.profiles, id)
+		}
+	}
 }
 func (b *Backend) Dispatch(packet Object) (Object, error) {
+	return b.DispatchForPeer(packet, "")
+}
+
+// peerIP must come from the HTTP transport, never the packet or proxy headers.
+func (b *Backend) DispatchForPeer(packet Object, peerIP string) (Object, error) {
 	messages, ok := packet["messages"].([]any)
 	if !ok || len(messages) == 0 || len(messages) > 32 {
 		return nil, errors.New("invalid message batch")
@@ -212,11 +232,14 @@ func (b *Backend) Dispatch(packet Object) (Object, error) {
 	b.expire()
 	responses := make([]any, 0, len(messages))
 	for _, msg := range messages {
-		responses = append(responses, b.message(obj(msg), str(packet["sessionId"])))
+		responses = append(responses, b.messageForPeer(obj(msg), str(packet["sessionId"]), peerIP))
 	}
 	return Object{"packetId": id, "responses": responses}, nil
 }
 func (b *Backend) message(m Object, sid string) Object {
+	return b.messageForPeer(m, sid, "")
+}
+func (b *Backend) messageForPeer(m Object, sid, peerIP string) Object {
 	if m == nil {
 		return failure(400, 40001)
 	}
@@ -227,8 +250,16 @@ func (b *Backend) message(m Object, sid string) Object {
 			return failure(403, 40315)
 		}
 		subject := str(data["externalId"])
+		deviceKind := ""
 		if b.nextendo != nil {
-			verifiedSubject, ok := b.nextendo.Verify(str(data["authenticationToken"]), subject)
+			verifiedSubject, kind, ok := b.nextendo.VerifySessionForPeer(str(data["authenticationToken"]), subject, peerIP)
+			if !ok {
+				return failure(403, 40307)
+			}
+			subject = verifiedSubject
+			deviceKind = kind
+		} else if b.labConsole != nil && strings.Count(str(data["authenticationToken"]), ".") == 2 {
+			verifiedSubject, ok := b.labConsole.Verify(str(data["authenticationToken"]), subject)
 			if !ok {
 				return failure(403, 40307)
 			}
@@ -248,15 +279,27 @@ func (b *Backend) message(m Object, sid string) Object {
 		pid := ProfileID(subject)
 		now := b.now()
 		p, newUser := b.profiles[pid]
+		if len(b.sessions) >= 4096 || (!newUser && len(b.profiles) >= 4096) {
+			return failure(503, 50300)
+		}
 		if !newUser {
 			p = &profile{created: now.UnixMilli()}
 			b.profiles[pid] = p
 		}
 		previous := p.last
+		if b.nextendo != nil {
+			p.accountPID = subject // Canonical PID returned by the verified account authority.
+			// A new verified login replaces this account's previous UCH sessions.
+			for id, previous := range b.sessions {
+				if previous.profile == pid {
+					delete(b.sessions, id)
+				}
+			}
+		}
 		p.last = now.UnixMilli()
 		p.count++
 		sid := opaque(32)
-		b.sessions[sid] = session{pid, now.Add(20 * time.Minute)}
+		b.sessions[sid] = session{profile: pid, expires: now.Add(20 * time.Minute), peerIP: peerIP, deviceKind: deviceKind}
 		response := Object{"id": pid, "profileId": pid, "sessionId": sid, "playerSessionExpiry": 1200, "server_time": now.UnixMilli(), "newUser": strconv.FormatBool(!newUser), "createdAt": p.created, "lastLogin": p.last, "previousLogin": previous, "loginCount": p.count, "xpCapped": false, "timeZoneOffset": 0, "countryCode": "", "languageCode": "en", "emailAddress": "", "pictureUrl": nil, "parentProfileId": nil, "identity": Object{"type": "Nintendo", "id": subject, "identityData": Object{}}, "rewards": Object{"rewardDetails": Object{}, "rewards": Object{}, "currency": Object{}}, "playerName": "", "statistics": Object{}, "currency": Object{}, "incoming_events": []any{}, "sent_events": []any{}}
 		for _, key := range []string{"vcPurchased", "vcClaimed", "refundCount", "amountSpent", "experiencePoints", "experienceLevel", "abTestingId"} {
 			response[key] = 0
@@ -351,7 +394,7 @@ func (b *Backend) message(m Object, sid string) Object {
 		}
 		var pending Object
 		if endpoint != nil && port != nil {
-			candidate := Object{"externalIPAddress": endpoint, "port": port}
+			candidate := Object{"externalIPAddress": endpoint, "port": port, "ownerID": s.profile}
 			if ep, ok := b.relay.Resolve(candidate); ok {
 				for k, v := range ep {
 					values[k] = v

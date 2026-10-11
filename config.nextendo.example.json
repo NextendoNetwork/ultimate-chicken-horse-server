@@ -3,9 +3,15 @@
   "nextendoAuth": {
     "jwksPath": "private/nextendo-baas-jwks.json",
     "issuer": "https://e0d67c509fb203858ebcb2fe3f88c2aa.baas.nintendo.com",
-    "audience": "ed9e2f05d286f7b8"
+    "audience": "ed9e2f05d286f7b8",
+    "allowAllAccounts": true,
+    "onlineCheckURL": "http://127.0.0.1:3000/internal/online-check",
+    "internalKeyEnv": "NEXTENDO_INTERNAL_KEY",
+    "deviceKindsByKeyId": {
+      "nextendo-baas-key-1": "ryujinx",
+      "00000000-0000-0000-0000-000000000002": "switch"
+    }
   },
-  "allowedSubjects": ["123"],
   "certificatePem": "private/server-cert.pem",
   "privateKeyPem": "private/server-key.pem",
   "relayStatePath": "private/relay-state.json",
