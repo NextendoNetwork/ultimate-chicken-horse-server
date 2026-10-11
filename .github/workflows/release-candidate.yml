@@ -25,6 +25,11 @@ jobs:
         run: |
           out="$RUNNER_TEMP/uch-candidate"
           mkdir -p "$out"
+          cp LICENSE.md "$out/"
+          for component in relayrouter unettransport unetwire; do
+            mkdir -p "$out/licenses/$component"
+            cp internal/$component/*LICENSE* "$out/licenses/$component/"
+          done
           go build -trimpath -buildvcs=true -o "$out/uch-server" ./cmd/uch-server
           go version -m "$out/uch-server" > "$out/BUILDINFO.txt"
           git rev-parse HEAD > "$out/SOURCE_REVISION.txt"
